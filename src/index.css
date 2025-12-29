@@ -1,8 +1,8 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: sans-serif, Georgia;
   line-height: 1.5;
-  font-weight: 400;
-
+  font-weight: 600;
+  --font-mushaf: '__MushafFont_885318', '__MushafFont_Fallback_885318';
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
   background-color: #242424;
@@ -23,9 +23,9 @@ a:hover {
 }
 
 body {
-  margin: 0;
+  margin: 5;
   display: flex;
-  place-items: center;
+  place-items:start ;
   min-width: 320px;
   min-height: 100vh;
 }

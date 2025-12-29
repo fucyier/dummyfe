@@ -1,0 +1,52 @@
+import axios from 'axios';
+
+const API_SURAH_LIST_URL = 'https://api.acikkuran.com/surahs'; 
+const API_AUTHOR_LIST_URL = 'https://api.acikkuran.com/authors'; 
+const API_SURAH_VERSE_URL = 'https://api.acikkuran.com/surah/'; 
+const API_SURAH_AUTHOR_VERSE_URL = 'https://api.acikkuran.com/surah/{surahId}?author={authorId}'; 
+
+
+export const fetchSurahList = async () => {
+  try { 
+    const response = await axios.get(API_SURAH_LIST_URL);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error fetching data: ', error);
+    // Handle errors here or throw them to be handled where the function is called
+    throw error;
+  }
+};
+
+export const fetchAuthorList = async () => {
+  try {
+    const response = await axios.get(API_AUTHOR_LIST_URL);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error fetching data: ', error);
+    // Handle errors here or throw them to be handled where the function is called
+    throw error;
+  }
+};
+
+export const verseList = async (surahId, authorId) => {
+  try {
+    let response=[];
+    if(surahId!==0&&authorId===0){
+     response = await axios.get(API_SURAH_VERSE_URL+surahId);
+    }else if(surahId!==0&&authorId!==0){
+       response = await axios.get(API_SURAH_VERSE_URL+surahId, 
+        {
+          params: {
+          author: authorId
+        }
+        });
+    }
+    else
+      alert("Sure ve Meal seçiniz...");
+    return response.data.data;
+  } catch (error) {
+    console.error('Error fetching data: ', error);
+    // Handle errors here or throw them to be handled where the function is called
+    throw error;
+  }
+};

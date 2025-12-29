@@ -1,6 +1,7 @@
 {
   "name": "dummyfe",
   "private": true,
+  "proxy": "http://localhost:5173/",
   "version": "0.0.0",
   "type": "module",
   "scripts": {
@@ -10,6 +11,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "'": "file:mui/material/Box'",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^7.3.6",
+    "@mui/styled-engine": "^7.3.6",
+    "axios": "^1.13.2",
+    "cors": "^2.8.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

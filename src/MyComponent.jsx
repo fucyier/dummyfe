@@ -12,6 +12,8 @@ import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
 import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import TextField from '@mui/material/TextField';
+import Autocomplete from '@mui/material/Autocomplete';
 
 const MyComponent = () => {
   const [loading, setLoading] = useState(true);
@@ -19,6 +21,7 @@ const MyComponent = () => {
   const [dataAuthor, setDataAuthor] = useState([])
   const [dataVerse, setDataVerse] = useState([])
   const [surah, setSurah] = useState(0);
+    const [surahName, setSurahName] = useState('');
   const [author, setAuthor] = useState(0);
    const [verseSimplified, setVerseSimplified] = useState(false);
 
@@ -55,9 +58,10 @@ const getVerseList =function (surahId,authorId){
       });
 }
 
- const handleChangeSurah = (event) => {
-    setSurah(event.target.value);
-    getVerseList(event.target.value,author);
+ const handleChangeSurah = (newValue) => {
+    setSurah(newValue.id);
+     setSurahName(newValue.name);
+    getVerseList(newValue.id,author);
   };
 
 
@@ -87,7 +91,7 @@ const Item = styled(Paper)(({ theme }) => ({
          <>
          <div>
             <FormControl variant="standard" sx={{ m: 1, minWidth: 130 }}>
-              <InputLabel id="select-label">Sureler</InputLabel>
+             {/*  <InputLabel id="select-label">Sureler</InputLabel>
               <Select
                 labelId="dselect-label"
                 id="select"
@@ -96,7 +100,37 @@ const Item = styled(Paper)(({ theme }) => ({
                 onChange={handleChangeSurah}
               >
                 {dataSurah.map(item => (<MenuItem key={item.id} value={item.id}>{item.id +'. ' + item.name}</MenuItem>))}
-              </Select>
+              </Select> */}
+                <Autocomplete
+                 value={surahName}
+                  id="free-solo-2-demo" 
+                  autoHighlight
+                  options={dataSurah}
+                  // options={dataSurah.map((item) => item.id +'. ' + item.name)}
+                  getOptionKey={(option) => option.id}
+                  getOptionLabel={(option) => option.name || ""}
+                   
+                  onChange={(event, newValue) => {
+                   
+                      handleChangeSurah(newValue)
+                    }}
+                  sx={{ width: 300 }}
+                 renderInput={(params) => (
+        <TextField
+          {...params}
+                  label="Sure Seçiniz"
+                  variant="standard"
+                  value={surahName}
+                  slotProps={{
+                    htmlInput: {
+                      ...params.inputProps
+                    },
+                  }}
+                />
+              )}
+            />
+                  
+                
             </FormControl>
               <FormControl variant="standard" sx={{ m: 1, minWidth: 250 }}>
                 <InputLabel id="select-label2">Meal</InputLabel>

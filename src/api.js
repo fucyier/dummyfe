@@ -41,8 +41,9 @@ export const verseList = async (surahId, authorId) => {
         }
         });
     }
-    else
-      alert("Sure ve Meal seçiniz...");
+    else{
+        throw new Error('Sure ve meal Seçiniz...');
+    }
     return response.data.data;
   } catch (error) {
     console.error('Error fetching data: ', error);

@@ -1,15 +1,12 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import React from 'react'
 import './App.css'
-import MyComponent from './MyComponent'
-
+import VerseComponent from './VerseComponent'
+import NavBarComponent from './NavBarComponent';
 function App() {
   return (
-    <>
-      <div>
-       <MyComponent/>
-      </div>
+    <> 
+       <NavBarComponent />
+       <VerseComponent/>
     </>
   )
 }

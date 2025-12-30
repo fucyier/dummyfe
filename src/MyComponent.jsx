@@ -166,18 +166,20 @@ const Item = styled(Paper)(({ theme }) => ({
               alignItems: "stretch",
             }}
               >
+                           <Item key={dataVerse.zero?.id} value={dataVerse.zero?.id}>{verseSimplified? dataVerse.zero?.verse_simplified:dataVerse.zero?.verse}</Item>
+                       <div id={'tr0'+dataVerse.zero?.id} style={{display: 'flex', justifyContent: 'flex-end', textAlign: 'left'}}>{dataVerse.zero?.transcription}</div> 
+            <div id={'tra0'+dataVerse.zero?.id} style={{display: 'flex', justifyContent: 'flex-end', textAlign: 'left'}}>{author!==0? dataVerse.zero?.translation.text:''}</div>  
+
            {dataVerse?.verses?.map(item => 
            <>
+
              <Divider>
               <Chip label={item.verse_number} size="small" />
             </Divider>
            <Item key={item.id} value={item.id}>{verseSimplified? item.verse_simplified:item.verse} 
            </Item>
             <div id={'tr'+item.id} style={{display: 'flex', justifyContent: 'flex-end', textAlign: 'left'}}>{item.transcription}</div> 
-           
             <div id={'tra'+item.id} style={{display: 'flex', justifyContent: 'flex-end', textAlign: 'left'}}>{author!==0? item.translation.text:''}</div> 
-            
-           
            </>
            )}
   </Stack>

@@ -28,7 +28,7 @@ export const fetchAuthorList = async () => {
   }
 };
 
-export const verseList = async (surahId, authorId) => {
+export const fetchVerseList = async (surahId, authorId) => {
   try {
     let response=[];
     if(surahId!==0&&authorId===0){

@@ -1,5 +1,5 @@
 import { useEffect, useState} from 'react';
-import { fetchAuthorList, fetchSurahList, fetchVerseList } from './api';
+import { fetchAudioList, fetchAuthorList, fetchSurahList, fetchVerseList } from './api';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
@@ -14,10 +14,12 @@ const BarComponent = () => {
   const [loading, setLoading] = useState(true);
   const [dataSurah, setDataSurah] = useState([])
   const [dataAuthor, setDataAuthor] = useState([])
+   const [dataAudio, setDataAudio] = useState([])
   const [dataVerse, setDataVerse] = useState([])
   const [surah, setSurah] = useState(0);
   const [surahName, setSurahName] = useState('');
   const [author, setAuthor] = useState(0);
+   const [audio, setAudio] = useState('');
   const [gorunum, setGorunum] = useState(false);
   const [error, setError] = useState('');
 
@@ -36,6 +38,16 @@ useEffect(() => {
      fetchAuthorList()
       .then(data => {
         setDataAuthor(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError(err);
+        setLoading(true);
+      });
+
+        fetchAudioList()
+      .then(data => {
+        setDataAudio(data);
         setLoading(false);
       })
       .catch(err => {
@@ -68,6 +80,11 @@ const getVerseList =function (surahId,authorId){
    const handleChangeAuthor = (event) => {
     setAuthor(event.target.value);
        getVerseList(surah,event.target.value);
+  };
+
+     const handleChangeAudio = (event) => {
+    setAudio(event.target.value);
+      // getVerseList(surah,event.target.value);
   };
 
      const handleChangeGorunum = (event) => {
@@ -112,10 +129,22 @@ const getVerseList =function (surahId,authorId){
                   labelId="label2"
                   id="select2"
                   value={author}
-                  label="Seslendiren"
+                  label="Meal"
                   onChange={handleChangeAuthor}
                 >
                   {dataAuthor.map(item => (<MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>))}
+                </Select>
+              </FormControl>
+               <FormControl variant="standard" sx={{ m: 1, minWidth: 200 }}>
+                <InputLabel id="select-label3">Okuyan</InputLabel>
+                <Select
+                  labelId="label3"
+                  id="select3"
+                  value={audio}
+                  label="Okuyan"
+                  onChange={handleChangeAudio}
+                >
+                  {dataAudio.map(item => (<MenuItem key={item.identifier} value={item.identifier}>{item.englishName}</MenuItem>))}
                 </Select>
               </FormControl>
               <FormControl>
@@ -126,7 +155,7 @@ const getVerseList =function (surahId,authorId){
             </div>
         )}
 
-        <VerseComponent surah={surah} author={author} gorunum={gorunum} dataVerse={dataVerse} />
+        <VerseComponent surah={surah} author={author} audio={audio} gorunum={gorunum} dataVerse={dataVerse} />
         </>
   );
 }

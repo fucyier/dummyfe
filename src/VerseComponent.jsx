@@ -11,7 +11,7 @@ import RestoreIcon from '@mui/icons-material/Restore';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import { AppBar } from '@mui/material';
 
-const VerseComponent = ({surah, author, gorunum, dataVerse}) => {
+const VerseComponent = ({surah, author,audio, gorunum, dataVerse}) => {
  
 
 const Item = styled(Paper)(({ theme }) => ({
@@ -65,13 +65,19 @@ const Item = styled(Paper)(({ theme }) => ({
                 </>
                 )}
               </Stack>
-            </div><AppBar position="fixed" color="primary" style={{top: "auto", bottom: 0}} >
+            </div>
+            <AppBar position="fixed" color="primary" style={{top: "auto", bottom: 0}} >
                <BottomNavigation sx={{ width: '100%' }}  >
-                <AudioPlayer src={dataVerse?.audio?.mp3} width='100%' />
-                 </BottomNavigation>
+              
+                <AudioPlayer src={`https://cdn.islamic.network/quran/audio-surah/128/${audio}/${surah}.mp3`} width='100%'  color="#cfcfcf"
+              sliderColor="#94b9ff"
+              backgroundColor="#1976d2" />
+                {/* <audio controls style={{width:'100%'}}>
+                  <source src={dataVerse?.audio?.mp3} type="audio/mpeg"></source>
+                </audio> */}
+              </BottomNavigation>
             </AppBar>
-            
-            
+
           </>
         );
       }

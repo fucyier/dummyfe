@@ -10,6 +10,12 @@ import BottomNavigationAction from '@mui/material/BottomNavigationAction';
 import RestoreIcon from '@mui/icons-material/Restore';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import { AppBar } from '@mui/material';
+import Toolbar from '@mui/material/Toolbar';
+import Fab from '@mui/material/Fab';
+import AddIcon from '@mui/icons-material/Add';
+import { Label } from '@mui/icons-material';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 
 const VerseComponent = ({surah, author,audio, gorunum, dataVerse}) => {
  
@@ -24,8 +30,26 @@ const Item = styled(Paper)(({ theme }) => ({
     backgroundColor: '#1A2027',
   }),
 }));
+const StyledFab = styled(Fab)({
+  position: 'absolute',
+  zIndex: 1,
+  top: -20,
+  left: 0,
+  right: 0,
+  margin: '0 auto',
+});
 
+ const handleClickUp = (event) => {
+    const anchor = (event.target.ownerDocument || document).querySelector(
+      '#back-to-top-anchor',
+    );
 
+    if (anchor) {
+      anchor.scrollIntoView({
+        block: 'center',
+      });
+    }
+  };
 
 
 
@@ -67,8 +91,14 @@ const Item = styled(Paper)(({ theme }) => ({
               </Stack>
             </div>
             <AppBar position="fixed" color="primary" style={{top: "auto", bottom: 0}} >
+              <Toolbar>
+                
+                 <StyledFab color="primary" variant="circular" size='small' onClick={handleClickUp}>
+          <KeyboardArrowUpIcon/>
+          </StyledFab>
+       
                <BottomNavigation sx={{ width: '100%' }}  >
-              
+          
                 <AudioPlayer src={`https://cdn.islamic.network/quran/audio-surah/128/${audio}/${surah}.mp3`} width='100%'  color="#cfcfcf"
               sliderColor="#94b9ff"
               backgroundColor="#1976d2" />
@@ -76,6 +106,7 @@ const Item = styled(Paper)(({ theme }) => ({
                   <source src={dataVerse?.audio?.mp3} type="audio/mpeg"></source>
                 </audio> */}
               </BottomNavigation>
+              </Toolbar>
             </AppBar>
 
           </>

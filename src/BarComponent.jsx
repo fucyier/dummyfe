@@ -1,5 +1,5 @@
 import { useEffect, useState} from 'react';
-import { fetchAudioList, fetchAuthorList, fetchSurahList, fetchVerseList } from './api';
+import { fetchAudioList, fetchAuthorList, fetchOkuyanlarinListesi, fetchSurahList, fetchVerseList } from './api';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
@@ -45,7 +45,7 @@ useEffect(() => {
         setLoading(true);
       });
 
-        fetchAudioList()
+        fetchOkuyanlarinListesi()
       .then(data => {
         setDataAudio(data);
         setLoading(false);
@@ -71,10 +71,16 @@ const getVerseList =function (surahId,authorId){
       });
 }
 
-  const handleChangeSurah = (newValue) => {
-    setSurah(newValue?.id||0);
-     setSurahName(newValue?.name);
-       getVerseList(newValue.id,author);
+  // const handleChangeSurah = (newValue) => {
+  //   setSurah(newValue?.id||0);
+  //    setSurahName(newValue?.name);
+  //      getVerseList(newValue.id,author);
+  // };
+
+    const handleChangeSurah = (event) => {
+    setSurah(event.target.value);
+     setSurahName(event.target.value);
+       getVerseList(event.target.value,author);
   };
 
    const handleChangeAuthor = (event) => {
@@ -83,6 +89,7 @@ const getVerseList =function (surahId,authorId){
   };
 
      const handleChangeAudio = (event) => {
+      if(surah===0) alert("Sure Seçiniz...");
     setAudio(event.target.value);
       // getVerseList(surah,event.target.value);
   };
@@ -98,7 +105,7 @@ const getVerseList =function (surahId,authorId){
         {!loading && (
        
             <div>
-              <FormControl variant="standard" sx={{ m: 1, minWidth: 100}}>
+              {/* <FormControl variant="standard" sx={{ m: 1, minWidth: 100}}>
                 <Autocomplete
                   value={surahName}
                   id="free-solo-2-demo"
@@ -122,6 +129,19 @@ const getVerseList =function (surahId,authorId){
                         },
                       }} />
                   )} />
+              </FormControl> */}
+
+                <FormControl variant="standard" sx={{ m: 1, minWidth: 200 }}>
+                <InputLabel id="select-label1">Sure</InputLabel>
+                <Select
+                  labelId="label1"
+                  id="select1"
+                  value={surah}
+                  label="Sure"
+                  onChange={handleChangeSurah}
+                >
+                  {dataSurah.map(item => (<MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>))}
+                </Select>
               </FormControl>
               <FormControl variant="standard" sx={{ m: 1, minWidth: 200 }}>
                 <InputLabel id="select-label2">Meal</InputLabel>
@@ -144,7 +164,7 @@ const getVerseList =function (surahId,authorId){
                   label="Okuyan"
                   onChange={handleChangeAudio}
                 >
-                  {dataAudio.map(item => (<MenuItem key={item.identifier} value={item.identifier}>{item.englishName}</MenuItem>))}
+                  {dataAudio.map(item => (<MenuItem key={item.name} value={item.name}>{item.name}</MenuItem>))}
                 </Select>
               </FormControl>
               <FormControl>

@@ -46,7 +46,7 @@ export const fetchAudioList = async () => {
 export const fetchOkuyanlarinListesi = async () => {
   try {
     axios.defaults.headers.get['Content-Type'] ='application/x-www-form-urlencoded';
-    axios.defaults.headers.post['Access-Control-Allow-Origin'] = '*';
+    axios.defaults.headers.get['Access-Control-Allow-Origin'] = '*';
     const response = await axios.get(API_CLOUD_SURAH_OKUYANLARIN_LISTESI_URL);
     return response.data[0].contents[0].contents;
   } catch (error) {

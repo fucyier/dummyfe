@@ -45,15 +45,15 @@ useEffect(() => {
         setLoading(true);
       });
 
-        fetchOkuyanlarinListesi()
-      .then(data => {
-        setDataAudio(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        setError(err);
-        setLoading(true);
-      });
+      //   fetchOkuyanlarinListesi()
+      // .then(data => {
+      //   setDataAudio(data);
+      //   setLoading(false);
+      // })
+      // .catch(err => {
+      //   setError(err);
+      //   setLoading(true);
+      // });
 
      
   }, []);
@@ -101,7 +101,7 @@ const getVerseList =function (surahId,authorId){
  return (
         <>  
 
-        {loading && <div>Loading</div>}
+        {loading && <div>Lütfen Bekleyiniz...</div>}
         {!loading && (
        
             <div>
@@ -155,7 +155,7 @@ const getVerseList =function (surahId,authorId){
                   {dataAuthor.map(item => (<MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>))}
                 </Select>
               </FormControl>
-               <FormControl variant="standard" sx={{ m: 1, minWidth: 200 }}>
+               {/* <FormControl variant="standard" sx={{ m: 1, minWidth: 200 }}>
                 <InputLabel id="select-label3">Okuyan</InputLabel>
                 <Select
                   labelId="label3"
@@ -166,7 +166,7 @@ const getVerseList =function (surahId,authorId){
                 >
                   {dataAudio.map(item => (<MenuItem key={item.name} value={item.name}>{item.name}</MenuItem>))}
                 </Select>
-              </FormControl>
+              </FormControl> */}
               <FormControl>
                 <FormControlLabel
                   control={<Switch checked={gorunum} onChange={handleChangeGorunum} name="gorunum" />}

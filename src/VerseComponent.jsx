@@ -90,25 +90,28 @@ const StyledFab = styled(Fab)({
                 )}
               </Stack>
             </div>
-            <AppBar position="fixed" color="primary" style={{top: "auto", bottom: 0}} >
-              <Toolbar>
-                
-                 <StyledFab color="primary" variant="circular" size='small' onClick={handleClickUp}>
+            {dataVerse.length>0 &&(
+              <AppBar position="fixed" color="primary" style={{top: "auto", bottom: 0}} >
+                <label>Türkçe Meal</label>
+            
+              
+                 {/* <StyledFab color="primary" variant="circular" size='small' onClick={handleClickUp}>
           <KeyboardArrowUpIcon/>
-          </StyledFab>
-       
+          </StyledFab> */}
+     
                <BottomNavigation sx={{ width: '100%' }}  >
-          
-                <AudioPlayer src={`https://cdn.islamic.network/quran/audio-surah/128/${audio}/${surah}.mp3`} width='100%'  color="#cfcfcf"
-              sliderColor="#94b9ff"
-              backgroundColor="#1976d2" />
-                {/* <audio controls style={{width:'100%'}}>
-                  <source src={dataVerse?.audio?.mp3} type="audio/mpeg"></source>
-                </audio> */}
+            
+                {/* <AudioPlayer src={`https://cdn.islamic.network/quran/audio-surah/128/${audio}/${surah}.mp3`} width='100%'  color="#cfcfcf"
+                      sliderColor="#94b9ff"
+                      backgroundColor="#1976d2" /> */}
+        <AudioPlayer src={dataVerse?.audio?.mp3} width='100%'  color="#cfcfcf"
+                      sliderColor="#94b9ff"
+                      backgroundColor="#1976d2" /> 
               </BottomNavigation>
-              </Toolbar>
+            
             </AppBar>
-
+          )
+}
           </>
         );
       }

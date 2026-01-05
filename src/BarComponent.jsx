@@ -45,15 +45,15 @@ useEffect(() => {
         setLoading(true);
       });
 
-      //   fetchOkuyanlarinListesi()
-      // .then(data => {
-      //   setDataAudio(data);
-      //   setLoading(false);
-      // })
-      // .catch(err => {
-      //   setError(err);
-      //   setLoading(true);
-      // });
+      fetchAudioList()
+      .then(data => {
+        setDataAudio(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError(err);
+        setLoading(true);
+      });
 
      
   }, []);
@@ -90,7 +90,7 @@ const getVerseList =function (surahId,authorId){
 
      const handleChangeAudio = (event) => {
       if(surah===0) alert("Sure Seçiniz...");
-    setAudio(event.target.value);
+       setAudio(event.target.value);
       // getVerseList(surah,event.target.value);
   };
 
@@ -155,8 +155,8 @@ const getVerseList =function (surahId,authorId){
                   {dataAuthor.map(item => (<MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>))}
                 </Select>
               </FormControl>
-               {/* <FormControl variant="standard" sx={{ m: 1, minWidth: 200 }}>
-                <InputLabel id="select-label3">Okuyan</InputLabel>
+               <FormControl variant="standard" sx={{ m: 1, minWidth: 200 }}>
+                <InputLabel id="select-label3">Seslendiren</InputLabel>
                 <Select
                   labelId="label3"
                   id="select3"
@@ -164,9 +164,9 @@ const getVerseList =function (surahId,authorId){
                   label="Okuyan"
                   onChange={handleChangeAudio}
                 >
-                  {dataAudio.map(item => (<MenuItem key={item.name} value={item.name}>{item.name}</MenuItem>))}
+                  {dataAudio.map(item => (<MenuItem key={item.identifier} value={item.identifier}>{item.englishName}</MenuItem>))}
                 </Select>
-              </FormControl> */}
+              </FormControl>
               <FormControl>
                 <FormControlLabel
                   control={<Switch checked={gorunum} onChange={handleChangeGorunum} name="gorunum" />}

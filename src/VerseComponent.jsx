@@ -3,20 +3,21 @@ import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
 import { styled } from '@mui/material/styles';
 import Divider from '@mui/material/Divider';
-import { AudioPlayer } from 'react-audio-play';
+import { AudioPlayer  } from 'react-audio-play';
 import BottomNavigation from '@mui/material/BottomNavigation';
 import { AppBar, Button } from '@mui/material';
 import Fab from '@mui/material/Fab';
 import SendIcon from '@mui/icons-material/Send';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
-import { useState } from 'react';
+import { useState,useRef } from 'react';
 
 
 const VerseComponent = ({surah, author,audio, gorunum, dataVerse}) => {
    const [state, setState] = useState({
     bottom: false
   });
+     const [secilenSound, setSecilenSound] = useState(null);
 
 const Item = styled(Paper)(({ theme }) => ({
   backgroundColor: '#fff7f7ea',
@@ -60,10 +61,9 @@ const StyledFab = styled(Fab)({
                <Box
               sx={{ width:  'auto' }}
               role="presentation"
-              // onClick={toggleDrawer('bottom', false)}
               onKeyDown={toggleDrawer('bottom', false)}
             >
-             <AudioPlayer src={`https://cdn.islamic.network/quran/audio/128/ar.alafasy/${item}.mp3`} width='100%'  color="#cfcfcf"
+             <AudioPlayer autoPlay={true} src={`https://cdn.islamic.network/quran/audio/128/${audio}/${item}.mp3`} width='100%'  color="#cfcfcf"
                       sliderColor="#94b9ff"
                       backgroundColor="#252a2fff" /> 
     </Box>
@@ -85,8 +85,6 @@ const StyledFab = styled(Fab)({
                   alignItems: "stretch",
                 }}
               >
-               
-                 
                 <Item key={dataVerse.zero?.id} value={dataVerse.zero?.id}>{gorunum ? dataVerse.zero?.verse_simplified : dataVerse.zero?.verse}</Item>
                 <div id={'tr0' + dataVerse.zero?.id} style={{ display: 'flex', justifyContent: 'flex-end', textAlign: 'left' }}>{dataVerse.zero?.transcription}</div>
                 <div id={'tra0' + dataVerse.zero?.id} style={{ display: 'flex', justifyContent: 'flex-end', textAlign: 'left' }}>{author !== 0 ? dataVerse.zero?.translation.text : ''}</div>
@@ -95,16 +93,15 @@ const StyledFab = styled(Fab)({
                 <>
                   <Divider>
                     {/* <Chip label={item.verse_number} size="large" /> */}
-                    <Button variant="contained" endIcon={<SendIcon />} onClick={toggleDrawer('bottom', true)}>
-                      Dinle
+                    <Button variant="contained" endIcon={<SendIcon />} onClick={
+                       (e)=>{
+                         setState({ ...state, ['bottom']: open });
+                         setSecilenSound(e.target.innerText.substring(0,1));
+                       }
+                      }>
+                      {item.id+'. ayet'}
                     </Button>
-                     <Drawer
-                          anchor={'bottom'}
-                          open={state['bottom']}
-                          onClose={toggleDrawer('bottom', false)}
-                        >
-                      {DrawerList(item.id)}
-                    </Drawer>
+                    
                   </Divider>
                   <Item key={item.id} value={item.id}>{gorunum ? item.verse_simplified : item.verse}
                   </Item>
@@ -112,6 +109,13 @@ const StyledFab = styled(Fab)({
                   <div id={'tra' + item.id} style={{ display: 'flex', justifyContent: 'flex-end', textAlign: 'left' }}>{author !== 0 ? item.translation.text : ''}</div>
                 </>
                 )}
+                 <Drawer
+                          anchor={'bottom'}
+                          open={state['bottom']}
+                          onClose={toggleDrawer('bottom', false)}
+                        >
+                      {DrawerList(secilenSound)}
+                    </Drawer>
               </Stack>
             </div>
             {dataVerse.audio!==undefined &&(

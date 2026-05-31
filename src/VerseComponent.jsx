@@ -93,13 +93,14 @@ const StyledFab = styled(Fab)({
                 <>
                   <Divider>
                     {/* <Chip label={item.verse_number} size="large" /> */}
-                    <Button variant="contained" endIcon={<SendIcon />} onClick={
+                    <Button variant="contained" endIcon={<SendIcon />}  value={item.id}
+                    onClick={
                        (e)=>{
                          setState({ ...state, ['bottom']: open });
-                         setSecilenSound(e.target.innerText.substring(0,1));
+                         setSecilenSound(e.target.value?.split('.')[0]);
                        }
                       }>
-                      {item.id+'. ayet'}
+                      {item.verse_number+'. ayet'}
                     </Button>
                     
                   </Divider>

@@ -1,11 +1,6 @@
 import { useEffect, useState} from 'react';
-import { fetchAudioList, fetchAuthorList, fetchOkuyanlarinListesi, fetchSurahList, fetchVerseList } from './api';
-import InputLabel from '@mui/material/InputLabel';
-import MenuItem from '@mui/material/MenuItem';
+import { fetchAudioList, fetchAuthorList, fetchSurahList, fetchVerseList } from './api';
 import FormControl from '@mui/material/FormControl';
-import Select from '@mui/material/Select';
-import Switch from '@mui/material/Switch';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
 import VerseComponent from './VerseComponent';
@@ -17,11 +12,9 @@ const BarComponent = () => {
    const [dataAudio, setDataAudio] = useState([])
   const [dataVerse, setDataVerse] = useState([])
   const [surah, setSurah] = useState(0);
-  const [surahName, setSurahName] = useState('');
   const [author, setAuthor] = useState(0);
    const [audio, setAudio] = useState('');
-  const [gorunum, setGorunum] = useState(false);
-  const [error, setError] = useState('');
+  const gorunum = false;
 
 useEffect(() => {
     fetchSurahList()
@@ -30,7 +23,7 @@ useEffect(() => {
         setLoading(false);
       })
       .catch(err => {
-        setError(err);
+        console.error(err);
         setLoading(true);
       });
 
@@ -41,7 +34,7 @@ useEffect(() => {
         setLoading(false);
       })
       .catch(err => {
-        setError(err);
+        console.error(err);
         setLoading(true);
       });
 
@@ -51,7 +44,7 @@ useEffect(() => {
         setLoading(false);
       })
       .catch(err => {
-        setError(err);
+        console.error(err);
         setLoading(true);
       });
 
@@ -66,7 +59,6 @@ const getVerseList =function (surahId,authorId){
       })
       .catch(err => {
         alert(err);
-        setError(err);
       //  setLoading(true);
       });
 }
@@ -77,25 +69,22 @@ const getVerseList =function (surahId,authorId){
   //      getVerseList(newValue.id,author);
   // };
 
-    const handleChangeSurah = (event) => {
-    setSurah(event.target.value);
-     setSurahName(event.target.value);
-       getVerseList(event.target.value,author);
+    const handleChangeSurah = (newValue) => {
+    const selectedSurah = newValue?.id || 0;
+    setSurah(selectedSurah);
+       getVerseList(selectedSurah,author);
   };
 
-   const handleChangeAuthor = (event) => {
-    setAuthor(event.target.value);
-       getVerseList(surah,event.target.value);
+   const handleChangeAuthor = (newValue) => {
+    const selectedAuthor = newValue?.id || 0;
+    setAuthor(selectedAuthor);
+       getVerseList(surah,selectedAuthor);
   };
 
-     const handleChangeAudio = (event) => {
+     const handleChangeAudio = (newValue) => {
       if(surah===0) alert("Sure Seçiniz...");
-       setAudio(event.target.value);
+       setAudio(newValue?.identifier || '');
       // getVerseList(surah,event.target.value);
-  };
-
-     const handleChangeGorunum = (event) => {
-    setGorunum(event.target.checked);
   };
 
  return (
@@ -132,46 +121,58 @@ const getVerseList =function (surahId,authorId){
               </FormControl> */}
 
                 <FormControl variant="standard" sx={{ m: 1, minWidth: 200 }}>
-                <InputLabel id="select-label1">Sure</InputLabel>
-                <Select
-                  labelId="label1"
+                <Autocomplete
                   id="select1"
-                  value={surah}
-                  label="Sure"
-                  onChange={handleChangeSurah}
-                >
-                  {dataSurah.map(item => (<MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>))}
-                </Select>
+                  autoHighlight
+                  openOnFocus
+                  options={dataSurah}
+                  value={dataSurah.find(item => item.id === surah) || null}
+                  getOptionLabel={(option) => option.name || ""}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  onChange={(event, newValue) => handleChangeSurah(newValue)}
+                  noOptionsText="Sonuc bulunamadi"
+                  renderInput={(params) => (
+                    <TextField {...params} label="Sure" variant="standard" />
+                  )}
+                />
               </FormControl>
               <FormControl variant="standard" sx={{ m: 1, minWidth: 200 }}>
-                <InputLabel id="select-label2">Meal</InputLabel>
-                <Select
-                  labelId="label2"
+                <Autocomplete
                   id="select2"
-                  value={author}
-                  label="Meal"
-                  onChange={handleChangeAuthor}
-                >
-                  {dataAuthor.map(item => (<MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>))}
-                </Select>
+                  autoHighlight
+                  openOnFocus
+                  options={dataAuthor}
+                  value={dataAuthor.find(item => item.id === author) || null}
+                  getOptionLabel={(option) => option.name || ""}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  onChange={(event, newValue) => handleChangeAuthor(newValue)}
+                  noOptionsText="Sonuc bulunamadi"
+                  renderInput={(params) => (
+                    <TextField {...params} label="Meal" variant="standard" />
+                  )}
+                />
               </FormControl>
                <FormControl variant="standard" sx={{ m: 1, minWidth: 200 }}>
-                <InputLabel id="select-label3">Seslendiren</InputLabel>
-                <Select
-                  labelId="label3"
+                <Autocomplete
                   id="select3"
-                  value={audio}
-                  label="Okuyan"
-                  onChange={handleChangeAudio}
-                >
-                  {dataAudio.map(item => (<MenuItem key={item.identifier} value={item.identifier}>{item.englishName}</MenuItem>))}
-                </Select>
+                  autoHighlight
+                  openOnFocus
+                  options={dataAudio}
+                  value={dataAudio.find(item => item.identifier === audio) || null}
+                  getOptionLabel={(option) => option.englishName || ""}
+                  isOptionEqualToValue={(option, value) => option.identifier === value.identifier}
+                  onChange={(event, newValue) => handleChangeAudio(newValue)}
+                  noOptionsText="Sonuc bulunamadi"
+                  renderInput={(params) => (
+                    <TextField {...params} label="Seslendiren" variant="standard" />
+                  )}
+                />
               </FormControl>
-              <FormControl>
+              {/* <FormControl>
                 <FormControlLabel
                   control={<Switch checked={gorunum} onChange={handleChangeGorunum} name="gorunum" />}
                   label="Görünüm" />
-              </FormControl>
+              </FormControl> */}
             </div>
         )}
 

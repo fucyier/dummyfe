@@ -7,6 +7,9 @@ import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Autocomplete from '@mui/material/Autocomplete';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
+import { toast } from 'react-toastify';
 import VerseComponent from './VerseComponent';
 
 const BarComponent = () => {
@@ -20,7 +23,7 @@ const BarComponent = () => {
   const [surah, setSurah] = useState(0);
   const [author, setAuthor] = useState(0);
    const [audio, setAudio] = useState('');
-  const gorunum = false;
+  const [gorunum, setGorunum] = useState(false);
 
 useEffect(() => {
     fetchSurahList()
@@ -70,7 +73,7 @@ const getVerseList =function (surahId,authorId){
         setLoading(false);
       })
       .catch(err => {
-        alert(err);
+        toast.error(err?.message || 'Ayetler yüklenirken bir hata oluştu.');
       //  setLoading(true);
       });
 }
@@ -84,6 +87,12 @@ const getVerseList =function (surahId,authorId){
     const handleChangeSurah = (newValue) => {
     const selectedSurah = newValue?.id || 0;
     setSurah(selectedSurah);
+    if (selectedSurah === 0) {
+      setAuthor(0);
+      setAudio('');
+      setDataVerse([]);
+      return;
+    }
        getVerseList(selectedSurah,author);
   };
 
@@ -94,9 +103,13 @@ const getVerseList =function (surahId,authorId){
   };
 
      const handleChangeAudio = (newValue) => {
-      if(surah===0) alert("Sure Seçiniz...");
+      if(surah===0) toast.error("Sure seçiniz.");
        setAudio(newValue?.identifier || '');
       // getVerseList(surah,event.target.value);
+  };
+
+  const handleChangeGorunum = (event) => {
+    setGorunum(event.target.checked);
   };
 
  return (
@@ -137,7 +150,7 @@ const getVerseList =function (surahId,authorId){
                   autoHighlight
                   options={dataSurah}
                   getOptionKey={(option) => option.id}
-                  getOptionLabel={(option) => option.name || ""}
+                  getOptionLabel={(option) => (option?.id ? `${option.id}. ${option.name}` : "")}
                   onChange={(event, newValue) => {
                     handleChangeSurah(newValue);
                   } }
@@ -163,10 +176,15 @@ const getVerseList =function (surahId,authorId){
                   openOnFocus
                   options={dataSurah}
                   value={dataSurah.find(item => item.id === surah) || null}
-                  getOptionLabel={(option) => option.name || ""}
+                  getOptionLabel={(option) => (option?.id ? `${option.id}. ${option.name}` : "")}
                   isOptionEqualToValue={(option, value) => option.id === value.id}
                   onChange={(event, newValue) => handleChangeSurah(newValue)}
                   noOptionsText="Sonuc bulunamadi"
+                  renderOption={(props, option) => (
+                    <Box component="li" {...props}>
+                      {option.id}. {option.name}
+                    </Box>
+                  )}
                   renderInput={(params) => (
                     <TextField {...params} label="Sure" variant="standard" />
                   )}
@@ -177,6 +195,7 @@ const getVerseList =function (surahId,authorId){
                   id="select2"
                   autoHighlight
                   openOnFocus
+                  disabled={surah === 0}
                   options={dataAuthor}
                   value={dataAuthor.find(item => item.id === author) || null}
                   getOptionLabel={(option) => option.name || ""}
@@ -193,6 +212,7 @@ const getVerseList =function (surahId,authorId){
                   id="select3"
                   autoHighlight
                   openOnFocus
+                  disabled={surah === 0}
                   options={dataAudio}
                   value={dataAudio.find(item => item.identifier === audio) || null}
                   getOptionLabel={(option) => option.englishName || ""}
@@ -204,22 +224,56 @@ const getVerseList =function (surahId,authorId){
                   )}
                 />
               </FormControl>
-              {/* <FormControl>
+              <FormControl
+                sx={{
+                  flex: '0 0 auto',
+                  minHeight: 48,
+                  justifyContent: 'flex-end',
+                  ml: { xs: 0, sm: 1 },
+                }}
+              >
                 <FormControlLabel
-                  control={<Switch checked={gorunum} onChange={handleChangeGorunum} name="gorunum" />}
-                  label="Görünüm" />
-              </FormControl> */}
+                  control={(
+                    <Switch
+                      checked={gorunum}
+                      onChange={handleChangeGorunum}
+                      name="gorunum"
+                      disabled={surah === 0}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': {
+                          color: '#6f7745',
+                        },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                          backgroundColor: '#6f7745',
+                        },
+                      }}
+                    />
+                  )}
+                  label="Latince Okunuş"
+                  sx={{
+                    m: 0,
+                    color: '#4f4a33',
+                    '& .MuiFormControlLabel-label': {
+                      fontWeight: 700,
+                      whiteSpace: 'nowrap',
+                    },
+                  }}
+                />
+              </FormControl>
             </Box>
         )}
 
         {!loading && <Box sx={{ height: { xs: 128, sm: 82 } }} />}
         {!loading && surah === 0 && (
+          <>
           <Paper
             elevation={2}
-            sx={{
-              mx: 'auto',
-              mt: 2,
-              mb: 4,
+              sx={{
+                position: 'relative',
+                zIndex: 1,
+                mx: 'auto',
+                mt: 2,
+                mb: 4,
               maxWidth: 900,
               p: { xs: 2, sm: 3 },
               textAlign: 'left',
@@ -255,6 +309,25 @@ const getVerseList =function (surahId,authorId){
               </Box>
             ))}
           </Paper>
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'block',
+                position: 'fixed',
+                left: 0,
+                right: 0,
+                bottom: 14,
+                zIndex: 0,
+                pointerEvents: 'none',
+                textAlign: 'center',
+                color: '#6f5a22',
+                fontWeight: 700,
+                textShadow: '0 1px 0 rgba(255, 248, 217, 0.8)',
+              }}
+            >
+              © 2026 Caner DEMİR
+            </Typography>
+          </>
         )}
         {surah !== 0 && (
           <VerseComponent surah={surah} author={author} audio={audio} gorunum={gorunum} dataVerse={dataVerse} />

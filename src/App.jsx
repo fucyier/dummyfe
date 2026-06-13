@@ -1,14 +1,14 @@
-import React from 'react'
 import './App.css'
-import VerseComponent from './VerseComponent'
+import 'react-toastify/dist/ReactToastify.css'
+import { ToastContainer } from 'react-toastify'
 import NavBarComponent from './NavBarComponent';
 import BarComponent from './BarComponent';
-import BottomBarComponent from './BottomBarComponent';
 function App() {
   return (
     <> 
        <NavBarComponent />
        <BarComponent/>
+       <ToastContainer position="top-right" autoClose={3000} theme="colored" />
       
     </>
   )

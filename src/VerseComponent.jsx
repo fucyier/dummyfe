@@ -7,9 +7,11 @@ import { AudioPlayer } from 'react-audio-play';
 import { AppBar, Button, Fab } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import { Fragment, useState } from 'react';
+import { toast } from 'react-toastify';
 
 const ArabicVerse = styled(Paper)(({ theme }) => ({
   backgroundColor: '#fff8d9',
@@ -113,12 +115,56 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
     });
   };
 
+  const handleVerseAudioClick = (verseId) => {
+    if (!audio) {
+      toast.error('Lütfen Seslendiren Seçiniz');
+      return;
+    }
+    setAudioDrawerOpen(true);
+    setSecilenSound(verseId?.split('.')[0]);
+  };
+
   return (
     <>
       <div>
-        <Typography sx={{ mt: 2, mb: 2 }} variant="h4" component="div">
-          {dataVerse.length == 0 ? '' : dataVerse.name + ' Suresi'}
-        </Typography>
+        {dataVerse.length != 0 && (
+          <Box
+            sx={{
+              mx: 'auto',
+              mt: 2,
+              mb: 2,
+              width: '100%',
+              maxWidth: 1120,
+              minHeight: { xs: 108, sm: 132 },
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#f8f5e8',
+              backgroundImage: `
+                url('/images/surah-title-lines-transparent.png'),
+                linear-gradient(rgba(248, 245, 232, 0.42), rgba(248, 245, 232, 0.42)),
+                url('/images/islamic-pattern.png')
+              `,
+              backgroundRepeat: 'no-repeat, repeat, repeat',
+              backgroundPosition: 'center, center, center',
+              backgroundSize: '100% 100%, auto, 620px auto',
+              backgroundAttachment: 'scroll, fixed, fixed',
+              px: { xs: 5, sm: 8 },
+            }}
+          >
+            <Typography
+              variant="h4"
+              component="div"
+              sx={{
+                color: '#6f5a22',
+                fontWeight: 700,
+                textAlign: 'center',
+              }}
+            >
+              {dataVerse.name + ' Suresi'}
+            </Typography>
+          </Box>
+        )}
         <br />
         <Stack
           direction="column"
@@ -129,16 +175,27 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
             pb: dataVerse.audio !== undefined ? 7 : 0,
           }}
         >
-          <ArabicVerse key={dataVerse.zero?.id} value={dataVerse.zero?.id}>
-            {formatArabicVerse(gorunum ? dataVerse.zero?.verse_simplified : dataVerse.zero?.verse)}
-          </ArabicVerse>
-          <div id={'tr0' + dataVerse.zero?.id} style={{ display: 'flex', justifyContent: 'flex-end', textAlign: 'left' }}>
+          {!gorunum && (
+            <ArabicVerse key={dataVerse.zero?.id} value={dataVerse.zero?.id}>
+              {formatArabicVerse(dataVerse.zero?.verse)}
+            </ArabicVerse>
+          )}
+          <div
+            id={'tr0' + dataVerse.zero?.id}
+            style={{
+              display: 'flex',
+              justifyContent: gorunum ? 'flex-start' : 'flex-end',
+              textAlign: 'left',
+            }}
+          >
             {dataVerse.zero?.transcription}
           </div>
 
           {dataVerse?.verses?.map(item => (
             <Fragment key={item.id}>
-              <Divider>
+              {gorunum && <Divider />}
+              {!gorunum && (
+                <Divider>
                 <Button
                   variant="contained"
                   endIcon={<SendIcon />}
@@ -152,17 +209,57 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
                     },
                   }}
                   onClick={(e) => {
+                    if (!audio) {
+                      toast.error('Lütfen Seslendiren Seçiniz');
+                      return;
+                    }
                     setAudioDrawerOpen(true);
                     setSecilenSound(e.currentTarget.value?.split('.')[0]);
                   }}
                 >
                   {item.verse_number + '. ayet'}
                 </Button>
-              </Divider>
-              <ArabicVerse value={item.id}>
-                {formatArabicVerse(gorunum ? item.verse_simplified : item.verse)}
-              </ArabicVerse>
-              <div id={'tr' + item.id} style={{ display: 'flex', justifyContent: 'flex-end', textAlign: 'left' }}>
+                </Divider>
+              )}
+              {!gorunum && (
+                <ArabicVerse value={item.id}>
+                  {formatArabicVerse(item.verse)}
+                </ArabicVerse>
+              )}
+              <div
+                id={'tr' + item.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: gorunum ? 'flex-start' : 'flex-end',
+                  alignItems: 'center',
+                  gap: gorunum ? '12px' : 0,
+                  textAlign: 'left',
+                }}
+              >
+                {gorunum && (
+                  <Button
+                    variant="contained"
+                    startIcon={<PlayArrowIcon fontSize="small" />}
+                    value={item.id}
+                    sx={{
+                      minWidth: 64,
+                      px: 1.25,
+                      py: 0.5,
+                      '& .MuiButton-startIcon': {
+                        mr: 0.5,
+                      },
+                      backgroundColor: '#6f7745',
+                      color: '#fff8d9',
+                      boxShadow: '0 2px 6px rgba(47, 56, 35, 0.18)',
+                      '&:hover': {
+                        backgroundColor: '#5b6438',
+                      },
+                    }}
+                    onClick={(e) => handleVerseAudioClick(e.currentTarget.value)}
+                  >
+                    {item.verse_number + '.'}
+                  </Button>
+                )}
                 {item.transcription}
               </div>
             </Fragment>

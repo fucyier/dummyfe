@@ -1,11 +1,23 @@
+@font-face {
+  font-family: 'KFGQPC HAFS';
+  src: url('/fonts/UthmanicHafs1-Ver09.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'KFGQPC Uthman Taha Naskh';
+  src: url('/fonts/UthmanTN1-Ver10.woff2') format('woff2');
+  font-display: swap;
+}
+
 :root {
   font-family: sans-serif, Georgia;
   line-height: 1.5;
   font-weight: 600;
-  --font-mushaf: '__MushafFont_885318', '__MushafFont_Fallback_885318';
+  --font-mushaf: 'KFGQPC HAFS', 'KFGQPC Uthman Taha Naskh', 'Traditional Arabic', serif;
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: #f8f5e8;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -23,11 +35,17 @@ a:hover {
 }
 
 body {
-  margin: 5;
+  margin: 5px;
   display: flex;
   place-items:start ;
   min-width: 320px;
   min-height: 100vh;
+  background-color: #f8f5e8;
+  background-image:
+    linear-gradient(rgba(248, 245, 232, 0.42), rgba(248, 245, 232, 0.42)),
+    url('/images/islamic-pattern.png');
+  background-attachment: fixed;
+  background-size: auto, 620px auto;
 }
 
 h1 {
@@ -54,10 +72,17 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+.MuiDrawer-root audio,
+.MuiDrawer-root [class*="audio"],
+.MuiDrawer-root [class*="Audio"] {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
-    background-color: #ffffff;
+    background-color: #f8f5e8;
   }
   a:hover {
     color: #747bff;
@@ -67,3 +92,11 @@ button:focus-visible {
   }
 }
 
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #242424;
+    background-image:
+      linear-gradient(rgba(36, 36, 36, 0.72), rgba(36, 36, 36, 0.72)),
+      url('/images/islamic-pattern.png');
+  }
+}

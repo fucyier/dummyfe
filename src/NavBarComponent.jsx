@@ -14,7 +14,16 @@ const NavBarComponent = () => {
  return (
        <>
         <Box sx={{ flexGrow: 1 }}>
-        <AppBar position="fixed" >
+        <AppBar
+          position="fixed"
+          sx={{
+            display: { xs: 'none', sm: 'block' },
+            backgroundColor: '#54613d',
+            color: '#fff8d9',
+            borderBottom: '1px solid rgba(142, 118, 63, 0.35)',
+            boxShadow: '0 2px 10px rgba(47, 56, 35, 0.22)',
+          }}
+        >
         <Toolbar variant="dense" id="back-to-top-anchor">
          <Avatar src="../static/images/icons-Allah.png" />
          <Typography

@@ -79,6 +79,33 @@ button:focus-visible {
   max-width: 100%;
 }
 
+.quran-audio-player.rap-container {
+  height: 42px;
+  min-height: 42px;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 0 4px;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+.quran-audio-player .rap-volume {
+  display: none;
+}
+
+.quran-audio-player .rap-controls {
+  min-width: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  margin-left: 8px;
+  margin-right: 0;
+}
+
+.quran-audio-player .rap-current-time,
+.quran-audio-player .rap-total-time {
+  min-width: 34px;
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;

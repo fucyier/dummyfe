@@ -4,13 +4,13 @@ import Paper from '@mui/material/Paper';
 import { styled } from '@mui/material/styles';
 import Divider from '@mui/material/Divider';
 import { AudioPlayer } from 'react-audio-play';
-import { AppBar, Button, Fab } from '@mui/material';
+import { AppBar, Button, Fab, FormControl, InputLabel, MenuItem, Select } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 
 const ArabicVerse = styled(Paper)(({ theme }) => ({
@@ -39,6 +39,30 @@ const ArabicVerse = styled(Paper)(({ theme }) => ({
   }),
 }));
 
+const VerseEndMark = styled('span')({
+  position: 'relative',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '1.15em',
+  height: '1.15em',
+  marginInlineStart: '0.28em',
+  verticalAlign: 'middle',
+  border: '0.055em solid #6f5a22',
+  borderRadius: '50%',
+  color: '#6f5a22',
+  fontFamily: 'Traditional Arabic, serif',
+  fontSize: '0.48em',
+  lineHeight: 1,
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    inset: '-0.16em',
+    border: '0.035em dotted #6f5a22',
+    borderRadius: '50%',
+  },
+});
+
 const formatArabicVerse = (text) => (
   text
     ?.replaceAll('\u06ea', '\u0650')
@@ -46,10 +70,60 @@ const formatArabicVerse = (text) => (
     .replace(/[\u06d6-\u06ed]/g, '') || ''
 );
 
+const toArabicNumber = (value) => (
+  String(value ?? '').replace(/\d/g, digit => '٠١٢٣٤٥٦٧٨٩'[digit])
+);
+
+const playbackSpeedOptions = [0.75, 1, 1.25, 1.5, 2];
+
+const getAudioVerseId = (verseId) => String(verseId ?? '').split('.')[0];
+
 const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
   const [audioDrawerOpen, setAudioDrawerOpen] = useState(false);
   const [mealOpen, setMealOpen] = useState(false);
   const [secilenSound, setSecilenSound] = useState(null);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [activeVerseId, setActiveVerseId] = useState(null);
+
+  useEffect(() => {
+    document.querySelectorAll('audio').forEach((audioElement) => {
+      audioElement.playbackRate = playbackSpeed;
+    });
+  }, [playbackSpeed, audioDrawerOpen, mealOpen, secilenSound, dataVerse?.audio?.mp3]);
+
+  const renderPlaybackSpeedControl = (labelId) => (
+    <FormControl size="small" sx={{ flex: '0 0 76px', minWidth: 0 }}>
+      <InputLabel id={labelId} sx={{ color: '#fff8d9' }}>Hız</InputLabel>
+      <Select
+        labelId={labelId}
+        value={playbackSpeed}
+        label="Hız"
+        onChange={(event) => setPlaybackSpeed(Number(event.target.value))}
+        sx={{
+          color: '#fff8d9',
+          height: 36,
+          '.MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(255, 248, 217, 0.55)',
+          },
+          '&:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#fff8d9',
+          },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#d7b765',
+          },
+          '.MuiSvgIcon-root': {
+            color: '#fff8d9',
+          },
+        }}
+      >
+        {playbackSpeedOptions.map((speed) => (
+          <MenuItem key={speed} value={speed}>
+            {speed}x
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
 
   const mealItems = [
     dataVerse.zero,
@@ -63,13 +137,30 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
       </Typography>
       {dataVerse?.audio?.mp3 && (
         <Box sx={{ mb: 2, maxWidth: '100%', overflow: 'hidden' }}>
-          <AudioPlayer
-            src={dataVerse.audio.mp3}
-            width="100%"
-            color="#fff8d9"
-            sliderColor="#d7b765"
-            backgroundColor="#54613d"
-          />
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              px: 1,
+              py: 0.25,
+              backgroundColor: '#54613d',
+              maxWidth: '100%',
+              overflow: 'hidden',
+            }}
+          >
+            <Box sx={{ flex: '1 1 auto', minWidth: 0 }}>
+              <AudioPlayer
+                className="quran-audio-player"
+                src={dataVerse.audio.mp3}
+                width="100%"
+                color="#fff8d9"
+                sliderColor="#d7b765"
+                backgroundColor="#54613d"
+              />
+            </Box>
+            {renderPlaybackSpeedControl('meal-playback-speed-label')}
+          </Box>
         </Box>
       )}
       {author === 0 && (
@@ -88,15 +179,38 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
   );
 
   const audioDrawerContent = (
-    <Box sx={{ width: '100%', maxWidth: '100vw', overflow: 'hidden' }} role="presentation">
-      <AudioPlayer
-        autoPlay
-        src={`https://cdn.islamic.network/quran/audio/128/${audio}/${secilenSound}.mp3`}
-        width="100%"
-        color="#cfcfcf"
-        sliderColor="#d7b765"
-        backgroundColor="#54613d"
-      />
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0.5,
+        width: '100%',
+        maxWidth: '100vw',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+        px: 0.5,
+        py: 0.25,
+        backgroundColor: '#54613d',
+      }}
+      role="presentation"
+    >
+      <Box sx={{ flex: '1 1 auto', minWidth: 0 }}>
+        <AudioPlayer
+          className="quran-audio-player"
+          autoPlay
+          src={`https://cdn.islamic.network/quran/audio/128/${audio}/${secilenSound}.mp3`}
+          width="100%"
+          color="#cfcfcf"
+          sliderColor="#d7b765"
+          backgroundColor="#54613d"
+          onEnd={() => {
+            setAudioDrawerOpen(false);
+            setSecilenSound(null);
+            setActiveVerseId(null);
+          }}
+        />
+      </Box>
+      {renderPlaybackSpeedControl('verse-playback-speed-label')}
     </Box>
   );
 
@@ -121,8 +235,24 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
       return;
     }
     setAudioDrawerOpen(true);
-    setSecilenSound(verseId?.split('.')[0]);
+    setSecilenSound(getAudioVerseId(verseId));
+    setActiveVerseId(String(verseId));
+    setTimeout(() => {
+      const verseElement = document.getElementById(`verse-${verseId}`);
+      if (!verseElement) return;
+      const headerOffset = 116;
+      const top = verseElement.getBoundingClientRect().top + window.scrollY - headerOffset;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }, 50);
   };
+
+  const handleAudioDrawerClose = () => {
+    setAudioDrawerOpen(false);
+    setSecilenSound(null);
+    setActiveVerseId(null);
+  };
+
+  const isActiveVerse = (verseId) => audioDrawerOpen && activeVerseId === String(verseId);
 
   return (
     <>
@@ -213,8 +343,7 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
                       toast.error('Lütfen Seslendiren Seçiniz');
                       return;
                     }
-                    setAudioDrawerOpen(true);
-                    setSecilenSound(e.currentTarget.value?.split('.')[0]);
+                    handleVerseAudioClick(e.currentTarget.value);
                   }}
                 >
                   {item.verse_number + '. ayet'}
@@ -222,8 +351,20 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
                 </Divider>
               )}
               {!gorunum && (
-                <ArabicVerse value={item.id}>
+                <ArabicVerse
+                  id={`verse-${item.id}`}
+                  value={item.id}
+                  sx={{
+                    transition: 'background-color 180ms ease, box-shadow 180ms ease, outline-color 180ms ease',
+                    ...(isActiveVerse(item.id) && {
+                      backgroundColor: '#ffeaa3',
+                      outline: '4px solid #d7b765',
+                      boxShadow: '0 0 0 8px rgba(215, 183, 101, 0.26), 0 10px 28px rgba(47, 56, 35, 0.24)',
+                    }),
+                  }}
+                >
                   {formatArabicVerse(item.verse)}
+                  <VerseEndMark>{toArabicNumber(item.verse_number)}</VerseEndMark>
                 </ArabicVerse>
               )}
               <div
@@ -265,7 +406,7 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
             </Fragment>
           ))}
 
-          <Drawer anchor="bottom" open={audioDrawerOpen} onClose={() => setAudioDrawerOpen(false)}>
+          <Drawer anchor="bottom" open={audioDrawerOpen} onClose={handleAudioDrawerClose}>
             {audioDrawerContent}
           </Drawer>
         </Stack>

@@ -67,6 +67,7 @@ const formatArabicVerse = (text) => (
   text
     ?.replaceAll('\u06ea', '\u0650')
     .replaceAll('\u0656', '\u0650')
+    .replace(/\u06d4[\u064b-\u0652]?/g, '')
     .replace(/[\u06d6-\u06ed]/g, '') || ''
 );
 
@@ -92,7 +93,7 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
   }, [playbackSpeed, audioDrawerOpen, mealOpen, secilenSound, dataVerse?.audio?.mp3]);
 
   const renderPlaybackSpeedControl = (labelId) => (
-    <FormControl size="small" sx={{ flex: '0 0 76px', minWidth: 0 }}>
+    <FormControl size="small" sx={{ flex: '0 0 96px', minWidth: 96 }}>
       <InputLabel id={labelId} sx={{ color: '#fff8d9' }}>Hız</InputLabel>
       <Select
         labelId={labelId}
@@ -102,6 +103,12 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
         sx={{
           color: '#fff8d9',
           height: 36,
+          '& .MuiSelect-select': {
+            pr: '28px !important',
+            overflow: 'visible',
+            textOverflow: 'clip',
+            whiteSpace: 'nowrap',
+          },
           '.MuiOutlinedInput-notchedOutline': {
             borderColor: 'rgba(255, 248, 217, 0.55)',
           },
@@ -129,6 +136,9 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
     dataVerse.zero,
     ...(dataVerse?.verses || []),
   ].filter(item => item?.translation?.text);
+  const verseCount = dataVerse?.verse_count || dataVerse?.verses?.length || 0;
+  const zeroVerseText = formatArabicVerse(dataVerse.zero?.verse).trim();
+  const hasZeroVerse = Boolean(zeroVerseText || dataVerse.zero?.transcription);
 
   const mealDrawerContent = (
     <Box sx={{ maxHeight: '70vh', overflowY: 'auto', p: 2, pb: 4 }}>
@@ -204,6 +214,25 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
           sliderColor="#d7b765"
           backgroundColor="#54613d"
           onEnd={() => {
+            const verses = dataVerse?.verses || [];
+            const currentIndex = verses.findIndex(item => String(item.id) === activeVerseId);
+            const nextVerse = verses[currentIndex + 1];
+
+            if (nextVerse) {
+              const nextVerseId = String(nextVerse.id);
+              setAudioDrawerOpen(true);
+              setSecilenSound(getAudioVerseId(nextVerseId));
+              setActiveVerseId(nextVerseId);
+              setTimeout(() => {
+                const verseElement = document.getElementById(`verse-${nextVerseId}`);
+                if (!verseElement) return;
+                const headerOffset = 116;
+                const top = verseElement.getBoundingClientRect().top + window.scrollY - headerOffset;
+                window.scrollTo({ top, behavior: 'smooth' });
+              }, 50);
+              return;
+            }
+
             setAudioDrawerOpen(false);
             setSecilenSound(null);
             setActiveVerseId(null);
@@ -267,6 +296,7 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
               maxWidth: 1120,
               minHeight: { xs: 108, sm: 132 },
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: '#f8f5e8',
@@ -280,6 +310,7 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
               backgroundSize: '100% 100%, auto, 620px auto',
               backgroundAttachment: 'scroll, fixed, fixed',
               px: { xs: 5, sm: 8 },
+              py: { xs: 1.5, sm: 2 },
             }}
           >
             <Typography
@@ -289,41 +320,61 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
                 color: '#6f5a22',
                 fontWeight: 700,
                 textAlign: 'center',
+                fontSize: { xs: '1.8rem', sm: '2.35rem' },
+                lineHeight: 1.1,
               }}
             >
               {dataVerse.name + ' Suresi'}
             </Typography>
+            {verseCount > 0 && (
+              <Typography
+                variant="subtitle1"
+                component="div"
+                sx={{
+                  mt: 0.5,
+                  color: '#6f5a22',
+                  fontWeight: 700,
+                  textAlign: 'center',
+                  fontSize: { xs: '0.95rem', sm: '1.05rem' },
+                  lineHeight: 1.2,
+                }}
+              >
+                {verseCount} Ayet
+              </Typography>
+            )}
           </Box>
         )}
         <br />
         <Stack
           direction="column"
-          spacing={2}
+          spacing={gorunum ? 0.75 : 2}
           sx={{
             justifyContent: 'flex-start',
             alignItems: 'stretch',
             pb: dataVerse.audio !== undefined ? 7 : 0,
           }}
         >
-          {!gorunum && (
+          {!gorunum && zeroVerseText && (
             <ArabicVerse key={dataVerse.zero?.id} value={dataVerse.zero?.id}>
-              {formatArabicVerse(dataVerse.zero?.verse)}
+              {zeroVerseText}
             </ArabicVerse>
           )}
-          <div
-            id={'tr0' + dataVerse.zero?.id}
-            style={{
-              display: 'flex',
-              justifyContent: gorunum ? 'flex-start' : 'flex-end',
-              textAlign: 'left',
-            }}
-          >
-            {dataVerse.zero?.transcription}
-          </div>
+          {hasZeroVerse && (
+            <div
+              id={'tr0' + dataVerse.zero?.id}
+              style={{
+                display: 'flex',
+                justifyContent: gorunum ? 'flex-start' : 'flex-end',
+                textAlign: 'left',
+              }}
+            >
+              {dataVerse.zero?.transcription}
+            </div>
+          )}
 
           {dataVerse?.verses?.map(item => (
             <Fragment key={item.id}>
-              {gorunum && <Divider />}
+              {gorunum && <Divider sx={{ my: 0.5 }} />}
               {!gorunum && (
                 <Divider>
                 <Button
@@ -368,13 +419,22 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
                 </ArabicVerse>
               )}
               <div
-                id={'tr' + item.id}
+                id={gorunum ? `verse-${item.id}` : `tr${item.id}`}
                 style={{
                   display: 'flex',
                   justifyContent: gorunum ? 'flex-start' : 'flex-end',
                   alignItems: 'center',
-                  gap: gorunum ? '12px' : 0,
+                  gap: gorunum ? '10px' : 0,
                   textAlign: 'left',
+                  padding: gorunum ? '6px 10px' : 0,
+                  borderRadius: gorunum ? 6 : 0,
+                  transition: 'background-color 180ms ease, box-shadow 180ms ease, outline-color 180ms ease',
+                  ...(gorunum && isActiveVerse(item.id) ? {
+                    backgroundColor: '#ffeaa3',
+                    outline: '3px solid #d7b765',
+                    boxShadow: '0 0 0 6px rgba(215, 183, 101, 0.22)',
+                    fontWeight: 700,
+                  } : {}),
                 }}
               >
                 {gorunum && (
@@ -385,7 +445,7 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
                     sx={{
                       minWidth: 64,
                       px: 1.25,
-                      py: 0.5,
+                      py: 0.35,
                       '& .MuiButton-startIcon': {
                         mr: 0.5,
                       },
@@ -406,7 +466,16 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
             </Fragment>
           ))}
 
-          <Drawer anchor="bottom" open={audioDrawerOpen} onClose={handleAudioDrawerClose}>
+          <Drawer
+            anchor="bottom"
+            open={audioDrawerOpen}
+            onClose={handleAudioDrawerClose}
+            slotProps={{
+              backdrop: {
+                sx: { backgroundColor: 'transparent' },
+              },
+            }}
+          >
             {audioDrawerContent}
           </Drawer>
         </Stack>

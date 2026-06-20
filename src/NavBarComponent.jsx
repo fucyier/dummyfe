@@ -33,7 +33,7 @@ const NavBarComponent = () => {
             href="/"
             sx={{
               mr: 2,
-              display: { xs: 'none', md: 'flex' },
+              display: { xs: 'none', sm: 'flex' },
               fontFamily: 'monospace',
               fontWeight: 700,
               letterSpacing: '.1rem',
@@ -46,8 +46,7 @@ const NavBarComponent = () => {
         </Toolbar>
       </AppBar>
     </Box>
-   <br />
-      <br />
+      <Box sx={{ height: { xs: 0, sm: 48 } }} />
         
        </>
  );

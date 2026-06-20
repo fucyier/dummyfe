@@ -1,4 +1,4 @@
-import { useEffect, useState} from 'react';
+import { useEffect, useRef, useState} from 'react';
 import { fetchAudioList, fetchAuthorList, fetchRandomVerseTranslations, fetchSurahList, fetchVerseList } from './api';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
@@ -12,7 +12,24 @@ import Switch from '@mui/material/Switch';
 import { toast } from 'react-toastify';
 import VerseComponent from './VerseComponent';
 
+const sortByText = (items, field) => (
+  [...items].sort((a, b) => (a?.[field] || '').localeCompare(b?.[field] || '', 'tr', { sensitivity: 'base' }))
+);
+
+const uniqueByText = (items, field) => {
+  const seen = new Set();
+  return items.filter((item) => {
+    const key = (item?.[field] || '').trim().toLocaleLowerCase('tr');
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const DEFAULT_AUDIO_IDENTIFIER = 'ar.alafasy';
+
 const BarComponent = () => {
+  const controlsRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [dataSurah, setDataSurah] = useState([])
   const [dataAuthor, setDataAuthor] = useState([])
@@ -22,8 +39,27 @@ const BarComponent = () => {
   const [randomLoading, setRandomLoading] = useState(true)
   const [surah, setSurah] = useState(0);
   const [author, setAuthor] = useState(0);
-   const [audio, setAudio] = useState('');
+  const [audio, setAudio] = useState(DEFAULT_AUDIO_IDENTIFIER);
   const [gorunum, setGorunum] = useState(false);
+  const [controlsHeight, setControlsHeight] = useState(0);
+
+useEffect(() => {
+    if (!controlsRef.current) return undefined;
+
+    const updateControlsHeight = () => {
+      setControlsHeight(controlsRef.current?.offsetHeight || 0);
+    };
+    const resizeObserver = new ResizeObserver(updateControlsHeight);
+
+    updateControlsHeight();
+    resizeObserver.observe(controlsRef.current);
+    window.addEventListener('resize', updateControlsHeight);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateControlsHeight);
+    };
+  }, [loading]);
 
 useEffect(() => {
     fetchSurahList()
@@ -45,7 +81,7 @@ useEffect(() => {
 
      fetchAuthorList()
       .then(data => {
-        setDataAuthor(data);
+        setDataAuthor(sortByText(data, 'name'));
         setLoading(false);
       })
       .catch(err => {
@@ -55,7 +91,7 @@ useEffect(() => {
 
       fetchAudioList()
       .then(data => {
-        setDataAudio(data);
+        setDataAudio(sortByText(uniqueByText(data, 'englishName'), 'englishName'));
         setLoading(false);
       })
       .catch(err => {
@@ -89,7 +125,7 @@ const getVerseList =function (surahId,authorId){
     setSurah(selectedSurah);
     if (selectedSurah === 0) {
       setAuthor(0);
-      setAudio('');
+      setAudio(DEFAULT_AUDIO_IDENTIFIER);
       setDataVerse([]);
       return;
     }
@@ -119,6 +155,7 @@ const getVerseList =function (surahId,authorId){
         {!loading && (
        
             <Box
+              ref={controlsRef}
               sx={{
                 position: 'fixed',
                 top: { xs: 0, sm: 48 },
@@ -263,7 +300,7 @@ const getVerseList =function (surahId,authorId){
             </Box>
         )}
 
-        {!loading && <Box sx={{ height: { xs: 128, sm: 82 } }} />}
+        {!loading && <Box sx={{ height: controlsHeight + 8 }} />}
         {!loading && surah === 0 && (
           <>
           <Paper
@@ -272,7 +309,7 @@ const getVerseList =function (surahId,authorId){
                 position: 'relative',
                 zIndex: 1,
                 mx: 'auto',
-                mt: 2,
+                mt: 1,
                 mb: 4,
               maxWidth: 900,
               p: { xs: 2, sm: 3 },

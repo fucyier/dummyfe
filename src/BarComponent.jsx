@@ -374,6 +374,8 @@ const getVerseList =function (surahId,authorId){
             gorunum={gorunum}
             dataVerse={dataVerse}
             dataSurah={dataSurah}
+            dataAuthor={dataAuthor}
+            onAuthorChange={handleChangeAuthor}
             onSurahNavigate={handleChangeSurah}
           />
         )}

@@ -4,7 +4,7 @@ import Paper from '@mui/material/Paper';
 import { styled } from '@mui/material/styles';
 import Divider from '@mui/material/Divider';
 import { AudioPlayer } from 'react-audio-play';
-import { AppBar, Button, Fab, FormControl, InputLabel, MenuItem, Select } from '@mui/material';
+import { AppBar, Autocomplete, Button, Fab, FormControl, InputLabel, MenuItem, Select, TextField } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -81,7 +81,17 @@ const playbackSpeedOptions = [0.75, 1, 1.25, 1.5, 2];
 
 const getAudioVerseId = (verseId) => String(verseId ?? '').split('.')[0];
 
-const VerseComponent = ({ surah, author, audio, gorunum, dataVerse, dataSurah = [], onSurahNavigate }) => {
+const VerseComponent = ({
+  surah,
+  author,
+  audio,
+  gorunum,
+  dataVerse,
+  dataSurah = [],
+  dataAuthor = [],
+  onAuthorChange,
+  onSurahNavigate,
+}) => {
   const [audioDrawerOpen, setAudioDrawerOpen] = useState(false);
   const [mealOpen, setMealOpen] = useState(false);
   const [secilenSound, setSecilenSound] = useState(null);
@@ -142,6 +152,7 @@ const VerseComponent = ({ surah, author, audio, gorunum, dataVerse, dataSurah = 
   const zeroVerseText = formatArabicVerse(dataVerse.zero?.verse).trim();
   const hasZeroVerse = Boolean(zeroVerseText || dataVerse.zero?.transcription);
   const currentSurahIndex = dataSurah.findIndex(item => item.id === surah);
+  const selectedSurah = dataSurah.find(item => item.id === surah);
   const previousSurah = currentSurahIndex > 0 ? dataSurah[currentSurahIndex - 1] : null;
   const nextSurah = currentSurahIndex >= 0 && currentSurahIndex < dataSurah.length - 1
     ? dataSurah[currentSurahIndex + 1]
@@ -149,9 +160,35 @@ const VerseComponent = ({ surah, author, audio, gorunum, dataVerse, dataSurah = 
 
   const mealDrawerContent = (
     <Box sx={{ maxHeight: '70vh', overflowY: 'auto', p: 2, pb: 4 }}>
-      <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
-        Türkçe Meal
-      </Typography>
+      <Box
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 2,
+          mb: 2,
+        }}
+      >
+        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+          {selectedSurah ? `${selectedSurah.name} Suresi` : 'Türkçe Meal'}
+        </Typography>
+        <FormControl variant="standard" sx={{ minWidth: { xs: '100%', sm: 240 } }}>
+          <Autocomplete
+            autoHighlight
+            openOnFocus
+            options={dataAuthor}
+            value={dataAuthor.find(item => item.id === author) || null}
+            getOptionLabel={(option) => option.name || ''}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            onChange={(event, newValue) => onAuthorChange?.(newValue)}
+            noOptionsText="Sonuc bulunamadi"
+            renderInput={(params) => (
+              <TextField {...params} label="Meal" variant="standard" />
+            )}
+          />
+        </FormControl>
+      </Box>
       {dataVerse?.audio?.mp3 && (
         <Box sx={{ mb: 2, maxWidth: '100%', overflow: 'hidden' }}>
           <Box
@@ -185,10 +222,12 @@ const VerseComponent = ({ surah, author, audio, gorunum, dataVerse, dataSurah = 
       )}
       {author !== 0 && mealItems.map((item, index) => (
         <Box key={item.id || index} sx={{ mb: 2, textAlign: 'left' }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-            {index === 0 ? 'Besmele' : `${item.verse_number}. ayet`}
+          <Typography variant="body1">
+            <Box component="span" sx={{ fontWeight: 700, mr: 0.75 }}>
+              {index === 0 ? 'Besmele' : `${item.verse_number}.`}
+            </Box>
+            {item.translation.text}
           </Typography>
-          <Typography variant="body1">{item.translation.text}</Typography>
           {index < mealItems.length - 1 && <Divider sx={{ mt: 2 }} />}
         </Box>
       ))}

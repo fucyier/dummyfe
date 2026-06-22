@@ -367,7 +367,15 @@ const getVerseList =function (surahId,authorId){
           </>
         )}
         {surah !== 0 && (
-          <VerseComponent surah={surah} author={author} audio={audio} gorunum={gorunum} dataVerse={dataVerse} />
+          <VerseComponent
+            surah={surah}
+            author={author}
+            audio={audio}
+            gorunum={gorunum}
+            dataVerse={dataVerse}
+            dataSurah={dataSurah}
+            onSurahNavigate={handleChangeSurah}
+          />
         )}
         </>
   );

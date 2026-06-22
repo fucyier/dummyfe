@@ -8,6 +8,8 @@ import { AppBar, Button, Fab, FormControl, InputLabel, MenuItem, Select } from '
 import SendIcon from '@mui/icons-material/Send';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import { Fragment, useEffect, useState } from 'react';
@@ -15,7 +17,7 @@ import { toast } from 'react-toastify';
 
 const ArabicVerse = styled(Paper)(({ theme }) => ({
   backgroundColor: '#fff8d9',
-  padding: theme.spacing(3),
+  padding: theme.spacing(1.5, 3),
   textAlign: 'right',
   direction: 'rtl',
   unicodeBidi: 'plaintext',
@@ -28,7 +30,7 @@ const ArabicVerse = styled(Paper)(({ theme }) => ({
   ].join(', '),
   fontSize: 'clamp(2rem, 4vw, 3.6rem)',
   fontWeight: 400,
-  lineHeight: 2.25,
+  lineHeight: 1.85,
   letterSpacing: 0,
   color: '#211b14',
   wordBreak: 'normal',
@@ -79,7 +81,7 @@ const playbackSpeedOptions = [0.75, 1, 1.25, 1.5, 2];
 
 const getAudioVerseId = (verseId) => String(verseId ?? '').split('.')[0];
 
-const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
+const VerseComponent = ({ surah, author, audio, gorunum, dataVerse, dataSurah = [], onSurahNavigate }) => {
   const [audioDrawerOpen, setAudioDrawerOpen] = useState(false);
   const [mealOpen, setMealOpen] = useState(false);
   const [secilenSound, setSecilenSound] = useState(null);
@@ -139,6 +141,11 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
   const verseCount = dataVerse?.verse_count || dataVerse?.verses?.length || 0;
   const zeroVerseText = formatArabicVerse(dataVerse.zero?.verse).trim();
   const hasZeroVerse = Boolean(zeroVerseText || dataVerse.zero?.transcription);
+  const currentSurahIndex = dataSurah.findIndex(item => item.id === surah);
+  const previousSurah = currentSurahIndex > 0 ? dataSurah[currentSurahIndex - 1] : null;
+  const nextSurah = currentSurahIndex >= 0 && currentSurahIndex < dataSurah.length - 1
+    ? dataSurah[currentSurahIndex + 1]
+    : null;
 
   const mealDrawerContent = (
     <Box sx={{ maxHeight: '70vh', overflowY: 'auto', p: 2, pb: 4 }}>
@@ -295,10 +302,10 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
               width: '100%',
               maxWidth: 1120,
               minHeight: { xs: 108, sm: 132 },
-              display: 'flex',
-              flexDirection: 'column',
+              display: 'grid',
+              gridTemplateColumns: { xs: 'minmax(86px, 1fr) minmax(120px, 1.25fr) minmax(86px, 1fr)', sm: '1fr 1.35fr 1fr' },
               alignItems: 'center',
-              justifyContent: 'center',
+              columnGap: { xs: 0.5, sm: 2 },
               backgroundColor: '#f8f5e8',
               backgroundImage: `
                 url('/images/surah-title-lines-transparent.png'),
@@ -309,10 +316,42 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
               backgroundPosition: 'center, center, center',
               backgroundSize: '100% 100%, auto, 620px auto',
               backgroundAttachment: 'scroll, fixed, fixed',
-              px: { xs: 5, sm: 8 },
+              px: { xs: 3, sm: 6 },
               py: { xs: 1.5, sm: 2 },
             }}
           >
+            <Box sx={{ display: 'flex', justifyContent: 'flex-start', minWidth: 0, pl: { xs: 3, sm: 5 } }}>
+            {previousSurah && (
+              <Button
+                variant="text"
+                startIcon={<ChevronLeftIcon />}
+                onClick={() => onSurahNavigate?.(previousSurah)}
+                sx={{
+                  maxWidth: '100%',
+                  minWidth: 0,
+                  px: { xs: 0.75, sm: 1.25 },
+                  py: 0.5,
+                  color: '#6f5a22',
+                  fontWeight: 800,
+                  fontSize: { xs: '0.72rem', sm: '0.88rem' },
+                  lineHeight: 1.15,
+                  textTransform: 'none',
+                  whiteSpace: 'normal',
+                  textAlign: 'left',
+                  backgroundColor: 'rgba(255, 248, 217, 0.58)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(215, 183, 101, 0.22)',
+                  },
+                  '& .MuiButton-startIcon': {
+                    mr: { xs: 0.25, sm: 0.5 },
+                  },
+                }}
+              >
+                {previousSurah.id}. {previousSurah.name}
+              </Button>
+            )}
+            </Box>
+            <Box sx={{ minWidth: 0, textAlign: 'center' }}>
             <Typography
               variant="h4"
               component="div"
@@ -320,8 +359,9 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
                 color: '#6f5a22',
                 fontWeight: 700,
                 textAlign: 'center',
-                fontSize: { xs: '1.8rem', sm: '2.35rem' },
+                fontSize: { xs: '1.55rem', sm: '2.35rem' },
                 lineHeight: 1.1,
+                overflowWrap: 'anywhere',
               }}
             >
               {dataVerse.name + ' Suresi'}
@@ -335,13 +375,45 @@ const VerseComponent = ({ author, audio, gorunum, dataVerse }) => {
                   color: '#6f5a22',
                   fontWeight: 700,
                   textAlign: 'center',
-                  fontSize: { xs: '0.95rem', sm: '1.05rem' },
+                  fontSize: { xs: '0.88rem', sm: '1.05rem' },
                   lineHeight: 1.2,
                 }}
               >
                 {verseCount} Ayet
               </Typography>
             )}
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', minWidth: 0, pr: { xs: 3, sm: 5 } }}>
+            {nextSurah && (
+              <Button
+                variant="text"
+                endIcon={<ChevronRightIcon />}
+                onClick={() => onSurahNavigate?.(nextSurah)}
+                sx={{
+                  maxWidth: '100%',
+                  minWidth: 0,
+                  px: { xs: 0.75, sm: 1.25 },
+                  py: 0.5,
+                  color: '#6f5a22',
+                  fontWeight: 800,
+                  fontSize: { xs: '0.72rem', sm: '0.88rem' },
+                  lineHeight: 1.15,
+                  textTransform: 'none',
+                  whiteSpace: 'normal',
+                  textAlign: 'right',
+                  backgroundColor: 'rgba(255, 248, 217, 0.58)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(215, 183, 101, 0.22)',
+                  },
+                  '& .MuiButton-endIcon': {
+                    ml: { xs: 0.25, sm: 0.5 },
+                  },
+                }}
+              >
+                {nextSurah.id}. {nextSurah.name}
+              </Button>
+            )}
+            </Box>
           </Box>
         )}
         <br />

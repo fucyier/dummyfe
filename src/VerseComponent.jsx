@@ -4,12 +4,14 @@ import Paper from '@mui/material/Paper';
 import { styled } from '@mui/material/styles';
 import Divider from '@mui/material/Divider';
 import { AudioPlayer } from 'react-audio-play';
-import { AppBar, Autocomplete, Button, Fab, FormControl, InputLabel, MenuItem, Select, TextField } from '@mui/material';
+import { AppBar, Autocomplete, Button, Fab, FormControl, FormControlLabel, IconButton, InputLabel, MenuItem, Select, Switch, TextField } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import SettingsIcon from '@mui/icons-material/Settings';
+import CloseIcon from '@mui/icons-material/Close';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import { Fragment, useEffect, useState } from 'react';
@@ -28,7 +30,7 @@ const ArabicVerse = styled(Paper)(({ theme }) => ({
     'Traditional Arabic',
     'serif',
   ].join(', '),
-  fontSize: 'clamp(2rem, 4vw, 3.6rem)',
+  fontSize: 'clamp(1.85rem, 3.7vw, 3.35rem)',
   fontWeight: 400,
   lineHeight: 1.85,
   letterSpacing: 0,
@@ -81,6 +83,40 @@ const playbackSpeedOptions = [0.75, 1, 1.25, 1.5, 2];
 
 const getAudioVerseId = (verseId) => String(verseId ?? '').split('.')[0];
 
+const getScrollTop = () => (
+  window.scrollY
+  || document.documentElement.scrollTop
+  || document.body.scrollTop
+  || 0
+);
+
+const getControlsOffset = () => {
+  const controlsElement = document.getElementById('top-controls');
+
+  if (controlsElement) {
+    return controlsElement.getBoundingClientRect().bottom + 16;
+  }
+
+  const controlsHeight = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue('--controls-height'),
+  );
+
+  return (Number.isFinite(controlsHeight) ? controlsHeight : 0) + 16;
+};
+
+const scrollVerseToTop = (verseId) => {
+  const verseElement = document.getElementById(`verse-${verseId}`);
+  if (!verseElement) return;
+
+  const top = Math.max(0, verseElement.getBoundingClientRect().top + getScrollTop() - getControlsOffset());
+  const options = { top, behavior: 'smooth' };
+
+  document.scrollingElement?.scrollTo(options);
+  document.documentElement.scrollTo(options);
+  document.body.scrollTo(options);
+  window.scrollTo(options);
+};
+
 const VerseComponent = ({
   surah,
   author,
@@ -97,6 +133,14 @@ const VerseComponent = ({
   const [secilenSound, setSecilenSound] = useState(null);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [activeVerseId, setActiveVerseId] = useState(null);
+  const [configDrawerOpen, setConfigDrawerOpen] = useState(false);
+  const [startVerse, setStartVerse] = useState(1);
+  const [endVerse, setEndVerse] = useState(0);
+  const [repeatEachVerse, setRepeatEachVerse] = useState(1);
+  const [loopLesson, setLoopLesson] = useState(false);
+  const [currentVerseRepeat, setCurrentVerseRepeat] = useState(1);
+  const [audioReplayKey, setAudioReplayKey] = useState(0);
+  const verseCount = dataVerse?.verse_count || dataVerse?.verses?.length || 0;
 
   useEffect(() => {
     document.querySelectorAll('audio').forEach((audioElement) => {
@@ -148,7 +192,6 @@ const VerseComponent = ({
     dataVerse.zero,
     ...(dataVerse?.verses || []),
   ].filter(item => item?.translation?.text);
-  const verseCount = dataVerse?.verse_count || dataVerse?.verses?.length || 0;
   const zeroVerseText = formatArabicVerse(dataVerse.zero?.verse).trim();
   const hasZeroVerse = Boolean(zeroVerseText || dataVerse.zero?.transcription);
   const currentSurahIndex = dataSurah.findIndex(item => item.id === surah);
@@ -157,6 +200,211 @@ const VerseComponent = ({
   const nextSurah = currentSurahIndex >= 0 && currentSurahIndex < dataSurah.length - 1
     ? dataSurah[currentSurahIndex + 1]
     : null;
+  const verseOptions = Array.from({ length: verseCount }, (_, index) => index + 1);
+  const selectedStartVerse = Math.min(Math.max(startVerse, 1), verseCount || 1);
+  const selectedEndVerse = endVerse === 0
+    ? verseCount || 1
+    : Math.min(Math.max(endVerse, selectedStartVerse), verseCount || selectedStartVerse);
+
+  const handleStartVerseChange = (event) => {
+    const nextStartVerse = Number(event.target.value);
+    setStartVerse(nextStartVerse);
+    if (nextStartVerse > selectedEndVerse) {
+      setEndVerse(nextStartVerse);
+    }
+  };
+
+  const handleEndVerseChange = (event) => {
+    const nextEndVerse = Number(event.target.value);
+    setEndVerse(nextEndVerse);
+    if (nextEndVerse < startVerse) {
+      setStartVerse(nextEndVerse);
+    }
+  };
+
+  const handleStartLesson = () => {
+    if (!audio) {
+      toast.error('Lütfen Seslendiren Seçiniz');
+      return;
+    }
+
+    const firstVerse = dataVerse?.verses?.find(
+      item => item.verse_number >= selectedStartVerse && item.verse_number <= selectedEndVerse,
+    );
+
+    if (!firstVerse) {
+      toast.error('Seçilen aralıkta ayet bulunamadı.');
+      return;
+    }
+
+    const firstVerseId = String(firstVerse.id);
+    setConfigDrawerOpen(false);
+    setAudioDrawerOpen(true);
+    setSecilenSound(getAudioVerseId(firstVerseId));
+    setActiveVerseId(firstVerseId);
+    setCurrentVerseRepeat(1);
+    setAudioReplayKey((prevKey) => prevKey + 1);
+    setTimeout(() => {
+      scrollVerseToTop(firstVerseId);
+    }, 50);
+  };
+
+  const configDrawerContent = (
+    <Box
+      sx={{
+        width: { xs: '86vw', sm: 360 },
+        maxWidth: 380,
+        height: '100%',
+        boxSizing: 'border-box',
+        p: 2.5,
+        backgroundColor: '#fffdf4',
+        color: '#211b14',
+      }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          mb: 2.5,
+        }}
+      >
+        <Typography variant="h6" sx={{ fontWeight: 800 }}>
+          Ayarlar
+        </Typography>
+        <IconButton aria-label="Ayarları kapat" onClick={() => setConfigDrawerOpen(false)}>
+          <CloseIcon />
+        </IconButton>
+      </Box>
+
+      <Box sx={{ display: 'grid', gap: 3 }}>
+        <Box
+          sx={{
+            p: 2,
+            border: '1px solid rgba(84, 97, 61, 0.18)',
+            borderRadius: 1,
+            backgroundColor: '#ffffff',
+          }}
+        >
+          <Typography variant="subtitle1" sx={{ mb: 1.5, fontWeight: 800 }}>
+            Aralık
+          </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.25 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="start-verse-label">Başlangıç</InputLabel>
+              <Select
+                labelId="start-verse-label"
+                value={selectedStartVerse}
+                label="Başlangıç"
+                onChange={handleStartVerseChange}
+              >
+                {verseOptions.map((verseNumber) => (
+                  <MenuItem key={verseNumber} value={verseNumber}>
+                    {verseNumber}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth size="small">
+              <InputLabel id="end-verse-label">Bitiş</InputLabel>
+              <Select
+                labelId="end-verse-label"
+                value={selectedEndVerse}
+                label="Bitiş"
+                onChange={handleEndVerseChange}
+              >
+                {verseOptions.map((verseNumber) => (
+                  <MenuItem key={verseNumber} value={verseNumber}>
+                    {verseNumber}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </Box>
+
+        <Box
+          sx={{
+            p: 2,
+            border: '1px solid rgba(84, 97, 61, 0.18)',
+            borderRadius: 1,
+            backgroundColor: '#ffffff',
+          }}
+        >
+          <Typography variant="subtitle1" sx={{ mb: 1.5, fontWeight: 800 }}>
+            Oynatma
+          </Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(120px, 1fr) auto',
+              alignItems: 'center',
+              gap: 1.5,
+            }}
+          >
+            <TextField
+              fullWidth
+              size="small"
+              type="number"
+              label="Tekrar"
+              value={repeatEachVerse}
+              onChange={(event) => setRepeatEachVerse(Math.max(1, Number(event.target.value) || 1))}
+              slotProps={{
+                htmlInput: {
+                  min: 1,
+                  max: 99,
+                  step: 1,
+                },
+              }}
+            />
+            <FormControlLabel
+              control={(
+                <Switch
+                  checked={loopLesson}
+                  onChange={(event) => setLoopLesson(event.target.checked)}
+                  sx={{
+                    '& .MuiSwitch-switchBase.Mui-checked': {
+                      color: '#6f7745',
+                    },
+                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                      backgroundColor: '#6f7745',
+                    },
+                  }}
+                />
+              )}
+              label="Döngüye al"
+              sx={{
+                m: 0,
+                color: '#4f4a33',
+                '& .MuiFormControlLabel-label': {
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                },
+              }}
+            />
+          </Box>
+        </Box>
+        <Button
+          fullWidth
+          variant="contained"
+          startIcon={<PlayArrowIcon />}
+          onClick={handleStartLesson}
+          sx={{
+            py: 1.1,
+            backgroundColor: '#6f7745',
+            color: '#fff8d9',
+            fontWeight: 800,
+            boxShadow: '0 3px 10px rgba(47, 56, 35, 0.22)',
+            '&:hover': {
+              backgroundColor: '#5b6438',
+            },
+          }}
+        >
+          Başlat
+        </Button>
+      </Box>
+    </Box>
+  );
 
   const mealDrawerContent = (
     <Box sx={{ maxHeight: '70vh', overflowY: 'auto', p: 2, pb: 4 }}>
@@ -252,6 +500,7 @@ const VerseComponent = ({
     >
       <Box sx={{ flex: '1 1 auto', minWidth: 0 }}>
         <AudioPlayer
+          key={audioReplayKey}
           className="quran-audio-player"
           autoPlay
           src={`https://cdn.islamic.network/quran/audio/128/${audio}/${secilenSound}.mp3`}
@@ -262,26 +511,52 @@ const VerseComponent = ({
           onEnd={() => {
             const verses = dataVerse?.verses || [];
             const currentIndex = verses.findIndex(item => String(item.id) === activeVerseId);
-            const nextVerse = verses[currentIndex + 1];
+            const currentVerse = verses[currentIndex];
+            const nextVerse = verses
+              .slice(currentIndex + 1)
+              .find(item => item.verse_number >= selectedStartVerse && item.verse_number <= selectedEndVerse);
+
+            if (currentVerse && currentVerseRepeat < repeatEachVerse) {
+              setCurrentVerseRepeat(currentVerseRepeat + 1);
+              setAudioReplayKey((prevKey) => prevKey + 1);
+              return;
+            }
 
             if (nextVerse) {
               const nextVerseId = String(nextVerse.id);
               setAudioDrawerOpen(true);
               setSecilenSound(getAudioVerseId(nextVerseId));
               setActiveVerseId(nextVerseId);
+              setCurrentVerseRepeat(1);
+              setAudioReplayKey((prevKey) => prevKey + 1);
               setTimeout(() => {
-                const verseElement = document.getElementById(`verse-${nextVerseId}`);
-                if (!verseElement) return;
-                const headerOffset = 116;
-                const top = verseElement.getBoundingClientRect().top + window.scrollY - headerOffset;
-                window.scrollTo({ top, behavior: 'smooth' });
+                scrollVerseToTop(nextVerseId);
               }, 50);
               return;
+            }
+
+            if (loopLesson) {
+              const firstVerse = verses.find(
+                item => item.verse_number >= selectedStartVerse && item.verse_number <= selectedEndVerse,
+              );
+              if (firstVerse) {
+                const firstVerseId = String(firstVerse.id);
+                setAudioDrawerOpen(true);
+                setSecilenSound(getAudioVerseId(firstVerseId));
+                setActiveVerseId(firstVerseId);
+                setCurrentVerseRepeat(1);
+                setAudioReplayKey((prevKey) => prevKey + 1);
+                setTimeout(() => {
+                  scrollVerseToTop(firstVerseId);
+                }, 50);
+                return;
+              }
             }
 
             setAudioDrawerOpen(false);
             setSecilenSound(null);
             setActiveVerseId(null);
+            setCurrentVerseRepeat(1);
           }}
         />
       </Box>
@@ -312,12 +587,10 @@ const VerseComponent = ({
     setAudioDrawerOpen(true);
     setSecilenSound(getAudioVerseId(verseId));
     setActiveVerseId(String(verseId));
+    setCurrentVerseRepeat(1);
+    setAudioReplayKey((prevKey) => prevKey + 1);
     setTimeout(() => {
-      const verseElement = document.getElementById(`verse-${verseId}`);
-      if (!verseElement) return;
-      const headerOffset = 116;
-      const top = verseElement.getBoundingClientRect().top + window.scrollY - headerOffset;
-      window.scrollTo({ top, behavior: 'smooth' });
+      scrollVerseToTop(verseId);
     }, 50);
   };
 
@@ -325,6 +598,7 @@ const VerseComponent = ({
     setAudioDrawerOpen(false);
     setSecilenSound(null);
     setActiveVerseId(null);
+    setCurrentVerseRepeat(1);
   };
 
   const isActiveVerse = (verseId) => audioDrawerOpen && activeVerseId === String(verseId);
@@ -336,7 +610,7 @@ const VerseComponent = ({
           <Box
             sx={{
               mx: 'auto',
-              mt: 2,
+              mt: 1,
               mb: 2,
               width: '100%',
               maxWidth: 1120,
@@ -581,6 +855,7 @@ const VerseComponent = ({
             anchor="bottom"
             open={audioDrawerOpen}
             onClose={handleAudioDrawerClose}
+            ModalProps={{ disableScrollLock: true }}
             slotProps={{
               backdrop: {
                 sx: { backgroundColor: 'transparent' },
@@ -591,6 +866,38 @@ const VerseComponent = ({
           </Drawer>
         </Stack>
       </div>
+
+      {verseCount > 0 && (
+        <>
+          <Fab
+            color="primary"
+            size="medium"
+            aria-label="Ayarlar"
+            onClick={() => setConfigDrawerOpen(true)}
+            sx={{
+              position: 'fixed',
+              right: { xs: 12, sm: 18 },
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 1200,
+              backgroundColor: '#6f7745',
+              color: '#fff8d9',
+              '&:hover': {
+                backgroundColor: '#5b6438',
+              },
+            }}
+          >
+            <SettingsIcon />
+          </Fab>
+          <Drawer
+            anchor="right"
+            open={configDrawerOpen}
+            onClose={() => setConfigDrawerOpen(false)}
+          >
+            {configDrawerContent}
+          </Drawer>
+        </>
+      )}
 
       {dataVerse.audio !== undefined && (
         <Fab

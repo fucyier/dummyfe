@@ -47,7 +47,9 @@ useEffect(() => {
     if (!controlsRef.current) return undefined;
 
     const updateControlsHeight = () => {
-      setControlsHeight(controlsRef.current?.offsetHeight || 0);
+      const nextControlsHeight = controlsRef.current?.offsetHeight || 0;
+      setControlsHeight(nextControlsHeight);
+      document.documentElement.style.setProperty('--controls-height', `${nextControlsHeight}px`);
     };
     const resizeObserver = new ResizeObserver(updateControlsHeight);
 
@@ -155,6 +157,7 @@ const getVerseList =function (surahId,authorId){
         {!loading && (
        
             <Box
+              id="top-controls"
               ref={controlsRef}
               sx={{
                 position: 'fixed',
@@ -206,7 +209,7 @@ const getVerseList =function (surahId,authorId){
                   )} />
               </FormControl> */}
 
-                <FormControl variant="standard" sx={{ minWidth: { xs: 150, sm: 200 }, flex: '0 1 220px' }}>
+                <FormControl variant="standard" sx={{ minWidth: { xs: 140, sm: 170 }, flex: '0 1 190px' }}>
                 <Autocomplete
                   id="select1"
                   autoHighlight
@@ -227,7 +230,7 @@ const getVerseList =function (surahId,authorId){
                   )}
                 />
               </FormControl>
-              <FormControl variant="standard" sx={{ minWidth: { xs: 150, sm: 200 }, flex: '0 1 220px' }}>
+              <FormControl variant="standard" sx={{ minWidth: { xs: 140, sm: 170 }, flex: '0 1 190px' }}>
                 <Autocomplete
                   id="select2"
                   autoHighlight
@@ -244,7 +247,7 @@ const getVerseList =function (surahId,authorId){
                   )}
                 />
               </FormControl>
-               <FormControl variant="standard" sx={{ minWidth: { xs: 150, sm: 200 }, flex: '0 1 220px' }}>
+               <FormControl variant="standard" sx={{ minWidth: { xs: 140, sm: 170 }, flex: '0 1 190px' }}>
                 <Autocomplete
                   id="select3"
                   autoHighlight
@@ -286,7 +289,7 @@ const getVerseList =function (surahId,authorId){
                       }}
                     />
                   )}
-                  label="Latince Okunuş"
+                  label="Latince"
                   sx={{
                     m: 0,
                     color: '#4f4a33',
@@ -300,7 +303,7 @@ const getVerseList =function (surahId,authorId){
             </Box>
         )}
 
-        {!loading && <Box sx={{ height: controlsHeight + 8 }} />}
+        {!loading && <Box sx={{ height: controlsHeight + 2 }} />}
         {!loading && surah === 0 && (
           <>
           <Paper
@@ -368,6 +371,7 @@ const getVerseList =function (surahId,authorId){
         )}
         {surah !== 0 && (
           <VerseComponent
+            key={surah}
             surah={surah}
             author={author}
             audio={audio}

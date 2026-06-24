@@ -1,14 +1,21 @@
 import { useEffect, useRef, useState} from 'react';
 import { fetchAudioList, fetchAuthorList, fetchRandomVerseTranslations, fetchSurahList, fetchVerseList } from './api';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
+import Dialog from '@mui/material/Dialog';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import Divider from '@mui/material/Divider';
 import FormControl from '@mui/material/FormControl';
+import IconButton from '@mui/material/IconButton';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Autocomplete from '@mui/material/Autocomplete';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
+import CloseIcon from '@mui/icons-material/Close';
 import { toast } from 'react-toastify';
 import VerseComponent from './VerseComponent';
 
@@ -28,6 +35,41 @@ const uniqueByText = (items, field) => {
 
 const DEFAULT_AUDIO_IDENTIFIER = 'ar.alafasy';
 
+const slugifySurahName = (name) => (
+  String(name || '')
+    .trim()
+    .toLocaleLowerCase('tr')
+    .replaceAll('ı', 'i')
+    .replaceAll('ğ', 'g')
+    .replaceAll('ü', 'u')
+    .replaceAll('ş', 's')
+    .replaceAll('ö', 'o')
+    .replaceAll('ç', 'c')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+);
+
+const getSurahPath = (surahItem) => {
+  const slug = slugifySurahName(surahItem?.name);
+  return slug ? `/${slug}_suresi` : '/';
+};
+
+const getSurahFromPath = (surahList) => {
+  const currentPath = decodeURIComponent(window.location.pathname || '').replace(/^\/+|\/+$/g, '');
+  if (!currentPath) return null;
+
+  return surahList.find((item) => currentPath === getSurahPath(item).slice(1)) || null;
+};
+
+const updateSurahPath = (surahItem) => {
+  const nextPath = surahItem ? getSurahPath(surahItem) : '/';
+  if (window.location.pathname !== nextPath) {
+    window.history.pushState(null, '', nextPath);
+  }
+};
+
 const BarComponent = () => {
   const controlsRef = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -37,6 +79,9 @@ const BarComponent = () => {
   const [dataVerse, setDataVerse] = useState([])
   const [randomVerses, setRandomVerses] = useState([])
   const [randomLoading, setRandomLoading] = useState(true)
+  const [randomSurahMealOpen, setRandomSurahMealOpen] = useState(false);
+  const [randomSurahMealLoading, setRandomSurahMealLoading] = useState(false);
+  const [randomSurahMeal, setRandomSurahMeal] = useState(null);
   const [surah, setSurah] = useState(0);
   const [author, setAuthor] = useState(0);
   const [audio, setAudio] = useState(DEFAULT_AUDIO_IDENTIFIER);
@@ -67,6 +112,11 @@ useEffect(() => {
     fetchSurahList()
       .then(data => {
         setDataSurah(data);
+        const initialSurah = getSurahFromPath(data);
+        if (initialSurah) {
+          setSurah(initialSurah.id);
+          getVerseList(initialSurah.id, author);
+        }
         return fetchRandomVerseTranslations(data);
       })
       .then(data => {
@@ -126,11 +176,13 @@ const getVerseList =function (surahId,authorId){
     const selectedSurah = newValue?.id || 0;
     setSurah(selectedSurah);
     if (selectedSurah === 0) {
+      updateSurahPath(null);
       setAuthor(0);
       setAudio(DEFAULT_AUDIO_IDENTIFIER);
       setDataVerse([]);
       return;
     }
+       updateSurahPath(newValue);
        getVerseList(selectedSurah,author);
   };
 
@@ -148,6 +200,35 @@ const getVerseList =function (surahId,authorId){
 
   const handleChangeGorunum = (event) => {
     setGorunum(event.target.checked);
+  };
+
+  const handleRandomSurahMealOpen = (item) => {
+    setRandomSurahMealOpen(true);
+    setRandomSurahMealLoading(true);
+    setRandomSurahMeal({
+      surahId: item.surahId,
+      surahName: item.surahName,
+      verses: [],
+    });
+
+    fetchVerseList(item.surahId, 11)
+      .then(data => {
+        setRandomSurahMeal({
+          surahId: item.surahId,
+          surahName: item.surahName,
+          verses: data?.verses || [],
+        });
+      })
+      .catch(err => {
+        toast.error(err?.message || 'Meal yÃ¼klenirken bir hata oluÅŸtu.');
+      })
+      .finally(() => {
+        setRandomSurahMealLoading(false);
+      });
+  };
+
+  const handleRandomSurahMealClose = () => {
+    setRandomSurahMealOpen(false);
   };
 
  return (
@@ -209,9 +290,10 @@ const getVerseList =function (surahId,authorId){
                   )} />
               </FormControl> */}
 
-                <FormControl variant="standard" sx={{ minWidth: { xs: 140, sm: 170 }, flex: '0 1 190px' }}>
+                <FormControl variant="outlined" sx={{ minWidth: { xs: 170, sm: 190 }, flex: { xs: '1 1 170px', sm: '0 1 210px' } }}>
                 <Autocomplete
                   id="select1"
+                  size="small"
                   autoHighlight
                   openOnFocus
                   options={dataSurah}
@@ -226,13 +308,25 @@ const getVerseList =function (surahId,authorId){
                     </Box>
                   )}
                   renderInput={(params) => (
-                    <TextField {...params} label="Sure" variant="standard" />
+                    <TextField
+                      {...params}
+                      label="Sure"
+                      variant="outlined"
+                      size="small"
+                      sx={{
+                        '& .MuiInputBase-input': {
+                          fontSize: '0.88rem',
+                          fontWeight: 700,
+                        },
+                      }}
+                    />
                   )}
                 />
               </FormControl>
-              <FormControl variant="standard" sx={{ minWidth: { xs: 140, sm: 170 }, flex: '0 1 190px' }}>
+              <FormControl variant="outlined" sx={{ minWidth: { xs: 170, sm: 190 }, flex: { xs: '1 1 170px', sm: '0 1 210px' } }}>
                 <Autocomplete
                   id="select2"
+                  size="small"
                   autoHighlight
                   openOnFocus
                   disabled={surah === 0}
@@ -243,13 +337,25 @@ const getVerseList =function (surahId,authorId){
                   onChange={(event, newValue) => handleChangeAuthor(newValue)}
                   noOptionsText="Sonuc bulunamadi"
                   renderInput={(params) => (
-                    <TextField {...params} label="Meal" variant="standard" />
+                    <TextField
+                      {...params}
+                      label="Meal"
+                      variant="outlined"
+                      size="small"
+                      sx={{
+                        '& .MuiInputBase-input': {
+                          fontSize: '0.88rem',
+                          fontWeight: 700,
+                        },
+                      }}
+                    />
                   )}
                 />
               </FormControl>
-               <FormControl variant="standard" sx={{ minWidth: { xs: 140, sm: 170 }, flex: '0 1 190px' }}>
+               <FormControl variant="outlined" sx={{ minWidth: { xs: 170, sm: 210 }, flex: { xs: '1 1 170px', sm: '0 1 230px' } }}>
                 <Autocomplete
                   id="select3"
+                  size="small"
                   autoHighlight
                   openOnFocus
                   disabled={surah === 0}
@@ -260,7 +366,18 @@ const getVerseList =function (surahId,authorId){
                   onChange={(event, newValue) => handleChangeAudio(newValue)}
                   noOptionsText="Sonuc bulunamadi"
                   renderInput={(params) => (
-                    <TextField {...params} label="Seslendiren" variant="standard" />
+                    <TextField
+                      {...params}
+                      label="Seslendiren"
+                      variant="outlined"
+                      size="small"
+                      sx={{
+                        '& .MuiInputBase-input': {
+                          fontSize: '0.88rem',
+                          fontWeight: 700,
+                        },
+                      }}
+                    />
                   )}
                 />
               </FormControl>
@@ -342,7 +459,28 @@ const getVerseList =function (surahId,authorId){
             {!randomLoading && randomVerses.map((item, index) => (
               <Box key={item.id} sx={{ mb: 2 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#6f7745', mb: 0.5 }}>
-                  {item.surahName} Suresi, {item.verseNumber}. ayet
+                  <Button
+                    variant="text"
+                    onClick={() => handleRandomSurahMealOpen(item)}
+                    sx={{
+                      minWidth: 0,
+                      p: 0,
+                      color: '#6f7745',
+                      fontWeight: 800,
+                      fontSize: 'inherit',
+                      lineHeight: 'inherit',
+                      textTransform: 'none',
+                      verticalAlign: 'baseline',
+                      '&:hover': {
+                        backgroundColor: 'transparent',
+                        color: '#4f5b2f',
+                        textDecoration: 'underline',
+                      },
+                    }}
+                  >
+                    {item.surahName} Suresi
+                  </Button>
+                  {`, ${item.verseNumber}. ayet`}
                 </Typography>
                 <Typography variant="body1">{item.translation}</Typography>
                 {index < randomVerses.length - 1 && <Divider sx={{ mt: 2 }} />}
@@ -383,6 +521,59 @@ const getVerseList =function (surahId,authorId){
             onSurahNavigate={handleChangeSurah}
           />
         )}
+        <Dialog
+          open={randomSurahMealOpen}
+          onClose={handleRandomSurahMealClose}
+          fullWidth
+          maxWidth="md"
+          scroll="paper"
+          PaperProps={{
+            sx: {
+              borderRadius: 1,
+              backgroundColor: '#fffdf4',
+            },
+          }}
+        >
+          <DialogTitle
+            sx={{
+              pr: 7,
+              color: '#6f5a22',
+              fontWeight: 800,
+            }}
+          >
+            {randomSurahMeal?.surahName ? `${randomSurahMeal.surahName} Suresi` : 'Sure Meali'}
+            <IconButton
+              aria-label="Meali kapat"
+              onClick={handleRandomSurahMealClose}
+              sx={{
+                position: 'absolute',
+                right: 12,
+                top: 10,
+                color: '#6f5a22',
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent dividers sx={{ backgroundColor: '#fffdf4' }}>
+            {randomSurahMealLoading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
+                <CircularProgress sx={{ color: '#6f7745' }} />
+              </Box>
+            )}
+            {!randomSurahMealLoading && randomSurahMeal?.verses?.map((item, index) => (
+              <Box key={item.id || item.verse_number || index} sx={{ mb: 2, textAlign: 'left' }}>
+                <Typography variant="body1">
+                  <Box component="span" sx={{ fontWeight: 800, mr: 0.75, color: '#6f7745' }}>
+                    {item.verse_number}.
+                  </Box>
+                  {item.translation?.text || ''}
+                </Typography>
+                {index < randomSurahMeal.verses.length - 1 && <Divider sx={{ mt: 2 }} />}
+              </Box>
+            ))}
+          </DialogContent>
+        </Dialog>
         </>
   );
 }

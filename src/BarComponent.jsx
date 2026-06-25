@@ -33,7 +33,71 @@ const uniqueByText = (items, field) => {
   });
 };
 
-const DEFAULT_AUDIO_IDENTIFIER = 'ar.alafasy';
+const DEFAULT_AUDIO_IDENTIFIER = 'alquran:ar.alafasy';
+
+const AUDIO_SOURCE_ORDER = {
+  'Ayet Bazlı': 0,
+  'Sure Bazlı': 1,
+};
+
+const sortAudioOptions = (items) => (
+  [...items].sort((a, b) => {
+    const sourceCompare = (AUDIO_SOURCE_ORDER[a.sourceLabel] ?? 99) - (AUDIO_SOURCE_ORDER[b.sourceLabel] ?? 99);
+    if (sourceCompare !== 0) return sourceCompare;
+
+    return (a?.englishName || '').localeCompare(b?.englishName || '', 'tr', { sensitivity: 'base' });
+  })
+);
+
+const topControlFieldSx = {
+  minWidth: { xs: 0, sm: 190 },
+  flex: { xs: '1 1 calc(50% - 8px)', sm: '0 1 210px' },
+};
+
+const topControlWideFieldSx = {
+  ...topControlFieldSx,
+  minWidth: { xs: 0, sm: 210 },
+  flex: { xs: '1 1 calc(50% - 8px)', sm: '0 1 230px' },
+};
+
+const topControlTextFieldSx = {
+  '& .MuiInputBase-root': {
+    minHeight: { xs: 36, sm: 40 },
+  },
+  '& .MuiInputBase-input': {
+    fontSize: { xs: '0.78rem', sm: '0.88rem' },
+    fontWeight: 700,
+    py: { xs: 0.55, sm: 0.8 },
+  },
+  '& .MuiInputLabel-root': {
+    fontSize: { xs: '0.78rem', sm: '0.9rem' },
+  },
+};
+
+const compactAutocompleteSlotProps = {
+  paper: {
+    sx: {
+      mt: 0.5,
+      '& .MuiAutocomplete-groupLabel': {
+        minHeight: { xs: 28, sm: 36 },
+        lineHeight: { xs: '28px', sm: '36px' },
+        fontSize: { xs: '0.72rem', sm: '0.82rem' },
+        fontWeight: 800,
+      },
+      '& .MuiAutocomplete-option': {
+        minHeight: { xs: 32, sm: 40 },
+        py: { xs: 0.35, sm: 0.75 },
+        px: { xs: 1, sm: 2 },
+        fontSize: { xs: '0.78rem', sm: '0.9rem' },
+      },
+    },
+  },
+  listbox: {
+    sx: {
+      maxHeight: { xs: '42vh', sm: 320 },
+    },
+  },
+};
 
 const slugifySurahName = (name) => (
   String(name || '')
@@ -143,7 +207,7 @@ useEffect(() => {
 
       fetchAudioList()
       .then(data => {
-        setDataAudio(sortByText(uniqueByText(data, 'englishName'), 'englishName'));
+        setDataAudio(sortAudioOptions(uniqueByText(data, 'id')));
         setLoading(false);
       })
       .catch(err => {
@@ -194,7 +258,7 @@ const getVerseList =function (surahId,authorId){
 
      const handleChangeAudio = (newValue) => {
       if(surah===0) toast.error("Sure seçiniz.");
-       setAudio(newValue?.identifier || '');
+       setAudio(newValue?.id || '');
       // getVerseList(surah,event.target.value);
   };
 
@@ -249,9 +313,9 @@ const getVerseList =function (surahId,authorId){
                 display: 'flex',
                 flexWrap: 'wrap',
                 justifyContent: 'center',
-                gap: 1,
-                px: 1,
-                py: 1,
+                gap: { xs: 0.6, sm: 1 },
+                px: { xs: 0.6, sm: 1 },
+                py: { xs: 0.6, sm: 1 },
                 backgroundColor: '#f8f5e8',
                 backgroundImage: `
                   linear-gradient(rgba(248, 245, 232, 0.42), rgba(248, 245, 232, 0.42)),
@@ -290,12 +354,13 @@ const getVerseList =function (surahId,authorId){
                   )} />
               </FormControl> */}
 
-                <FormControl variant="outlined" sx={{ minWidth: { xs: 170, sm: 190 }, flex: { xs: '1 1 170px', sm: '0 1 210px' } }}>
+                <FormControl variant="outlined" sx={topControlFieldSx}>
                 <Autocomplete
                   id="select1"
                   size="small"
                   autoHighlight
                   openOnFocus
+                  slotProps={compactAutocompleteSlotProps}
                   options={dataSurah}
                   value={dataSurah.find(item => item.id === surah) || null}
                   getOptionLabel={(option) => (option?.id ? `${option.id}. ${option.name}` : "")}
@@ -313,22 +378,18 @@ const getVerseList =function (surahId,authorId){
                       label="Sure"
                       variant="outlined"
                       size="small"
-                      sx={{
-                        '& .MuiInputBase-input': {
-                          fontSize: '0.88rem',
-                          fontWeight: 700,
-                        },
-                      }}
+                      sx={topControlTextFieldSx}
                     />
                   )}
                 />
               </FormControl>
-              <FormControl variant="outlined" sx={{ minWidth: { xs: 170, sm: 190 }, flex: { xs: '1 1 170px', sm: '0 1 210px' } }}>
+              <FormControl variant="outlined" sx={topControlFieldSx}>
                 <Autocomplete
                   id="select2"
                   size="small"
                   autoHighlight
                   openOnFocus
+                  slotProps={compactAutocompleteSlotProps}
                   disabled={surah === 0}
                   options={dataAuthor}
                   value={dataAuthor.find(item => item.id === author) || null}
@@ -342,41 +403,43 @@ const getVerseList =function (surahId,authorId){
                       label="Meal"
                       variant="outlined"
                       size="small"
-                      sx={{
-                        '& .MuiInputBase-input': {
-                          fontSize: '0.88rem',
-                          fontWeight: 700,
-                        },
-                      }}
+                      sx={topControlTextFieldSx}
                     />
                   )}
                 />
               </FormControl>
-               <FormControl variant="outlined" sx={{ minWidth: { xs: 170, sm: 210 }, flex: { xs: '1 1 170px', sm: '0 1 230px' } }}>
+               <FormControl variant="outlined" sx={topControlWideFieldSx}>
                 <Autocomplete
                   id="select3"
                   size="small"
                   autoHighlight
                   openOnFocus
+                  slotProps={compactAutocompleteSlotProps}
                   disabled={surah === 0}
                   options={dataAudio}
-                  value={dataAudio.find(item => item.identifier === audio) || null}
-                  getOptionLabel={(option) => option.englishName || ""}
-                  isOptionEqualToValue={(option, value) => option.identifier === value.identifier}
+                  value={dataAudio.find(item => item.id === audio) || null}
+                  groupBy={(option) => option.sourceLabel || 'Diger'}
+                  getOptionLabel={(option) => `${option.isKaabaImam ? '🕋 ' : ''}${option.englishName || ""}`}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
                   onChange={(event, newValue) => handleChangeAudio(newValue)}
                   noOptionsText="Sonuc bulunamadi"
+                  renderOption={(props, option) => (
+                    <Box component="li" {...props}>
+                      {option.isKaabaImam && (
+                        <Box component="span" aria-hidden="true" sx={{ mr: 0.75 }}>
+                          🕋
+                        </Box>
+                      )}
+                      {option.englishName}
+                    </Box>
+                  )}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       label="Seslendiren"
                       variant="outlined"
                       size="small"
-                      sx={{
-                        '& .MuiInputBase-input': {
-                          fontSize: '0.88rem',
-                          fontWeight: 700,
-                        },
-                      }}
+                      sx={topControlTextFieldSx}
                     />
                   )}
                 />
@@ -384,7 +447,7 @@ const getVerseList =function (surahId,authorId){
               <FormControl
                 sx={{
                   flex: '0 0 auto',
-                  minHeight: 48,
+                  minHeight: { xs: 36, sm: 48 },
                   justifyContent: 'flex-end',
                   ml: { xs: 0, sm: 1 },
                 }}
@@ -400,18 +463,26 @@ const getVerseList =function (surahId,authorId){
                         '& .MuiSwitch-switchBase.Mui-checked': {
                           color: '#6f7745',
                         },
-                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
                           backgroundColor: '#6f7745',
+                        },
+                        '& .MuiSwitch-thumb': {
+                          width: { xs: 16, sm: 20 },
+                          height: { xs: 16, sm: 20 },
+                        },
+                        '& .MuiSwitch-switchBase': {
+                          p: { xs: 0.75, sm: 1 },
                         },
                       }}
                     />
                   )}
-                  label="Latince"
+                  label={gorunum ? 'Latince' : 'Arapça'}
                   sx={{
                     m: 0,
                     color: '#4f4a33',
                     '& .MuiFormControlLabel-label': {
                       fontWeight: 700,
+                      fontSize: { xs: '0.78rem', sm: '1rem' },
                       whiteSpace: 'nowrap',
                     },
                   }}
@@ -512,7 +583,7 @@ const getVerseList =function (surahId,authorId){
             key={surah}
             surah={surah}
             author={author}
-            audio={audio}
+            audio={dataAudio.find(item => item.id === audio) || null}
             gorunum={gorunum}
             dataVerse={dataVerse}
             dataSurah={dataSurah}

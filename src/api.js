@@ -4,6 +4,7 @@ const API_SURAH_LIST_URL = 'https://api.acikkuran.com/surahs';
 
 const API_AUTHOR_LIST_URL = 'https://api.acikkuran.com/authors'; 
 const API_AUDIO_LIST_URL = 'https://api.alquran.cloud/v1/edition/format/audio'; 
+const API_MP3_QURAN_RECITERS_URL = 'https://www.mp3quran.net/api/v3/reciters?language=eng';
 const API_SURAH_AUDIO_URL = 'https://cdn.islamic.network/quran/audio-surah/128/{audio}/{surah}.mp3'; 
 const API_SURAH_VERSE_URL = 'https://api.acikkuran.com/surah/'; 
 const API_CLOUD_SURAH_LIST_URL = 'https://api.alquran.cloud/v1/surah/'; 
@@ -21,10 +22,6 @@ const AVAILABLE_AUDIO_IDENTIFIERS = new Set([
   'ar.minshawi',
   'ar.muhammadayyoub',
   'ar.muhammadjibreel',
-  'zh.chinese',
-  'fr.leclerc',
-  'ru.kuliev-audio',
-  'kk.khalifahaltai-audio',
   'ar.alafasy-2',
   'ar.husary-2',
   'ar.mahermuaiqly-2',
@@ -35,6 +32,70 @@ const AVAILABLE_AUDIO_IDENTIFIERS = new Set([
   'ar.muhammadjibreel-2',
   'tr.vakfi-audio',
 ]);
+
+const MP3_QURAN_RECITER_IDS = new Set([
+  31, // Saud Al-Shuraim
+  54, // Abdulrahman Alsudaes
+  62, // Abdullah Al-Johany
+  92, // Yasser Al-Dosari
+  102, // Maher Al Meaqli
+  217, // Bandar Balilah
+]);
+
+const AL_QURAN_CLOUD_KAABA_IMAM_IDENTIFIERS = new Set([
+  'ar.hudhaify',
+  'ar.hudhaify-2',
+  'ar.mahermuaiqly',
+  'ar.mahermuaiqly-2',
+  'ar.muhammadayyoub',
+  'ar.muhammadayyoub-2',
+]);
+
+const toAudioOption = (item) => ({
+  ...item,
+  id: `alquran:${item.identifier}`,
+  source: 'alquran',
+  sourceLabel: 'Ayet Bazlı',
+  audioType: 'ayah',
+  isKaabaImam: AL_QURAN_CLOUD_KAABA_IMAM_IDENTIFIERS.has(item.identifier),
+});
+
+const toMp3QuranOption = (reciter) => {
+  const fullMoshafs = reciter.moshaf?.filter(item => item.surah_total === 114) || [];
+  const moshaf = fullMoshafs.find(item => /hafs|murattal/i.test(item.name))
+    || fullMoshafs[0]
+    || reciter.moshaf?.[0];
+  if (!moshaf?.server) return null;
+
+  return {
+    id: `mp3quran:${reciter.id}:${moshaf.id}`,
+    identifier: `mp3quran:${reciter.id}:${moshaf.id}`,
+    source: 'mp3quran',
+    sourceLabel: 'Sure Bazlı',
+    audioType: 'surah',
+    englishName: reciter.name,
+    isKaabaImam: true,
+    server: moshaf.server,
+    surahList: String(moshaf.surah_list || '')
+      .split(',')
+      .map(value => Number(value))
+      .filter(Boolean),
+  };
+};
+
+const uniqueAudioByName = (items) => {
+  const seen = new Set();
+
+  return items.filter((item) => {
+    const key = String(item.englishName || item.name || '')
+      .trim()
+      .toLocaleLowerCase('tr');
+
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 
 export const fetchSurahList = async () => {
   try { 
@@ -50,7 +111,7 @@ export const fetchSurahList = async () => {
 export const fetchAuthorList = async () => {
   try {
     const response = await axios.get(API_AUTHOR_LIST_URL);
-    return response.data.data;
+    return response.data.data.filter(item => item.language === 'tr');
   } catch (error) {
     console.error('Error fetching data: ', error);
     // Handle errors here or throw them to be handled where the function is called
@@ -60,8 +121,21 @@ export const fetchAuthorList = async () => {
 
 export const fetchAudioList = async () => {
   try {
-    const response = await axios.get(API_AUDIO_LIST_URL);
-    return response.data.data.filter(item => AVAILABLE_AUDIO_IDENTIFIERS.has(item.identifier));
+    const [alQuranResponse, mp3QuranResponse] = await Promise.all([
+      axios.get(API_AUDIO_LIST_URL),
+      axios.get(API_MP3_QURAN_RECITERS_URL),
+    ]);
+
+    const alQuranAudio = uniqueAudioByName(alQuranResponse.data.data
+      .filter(item => AVAILABLE_AUDIO_IDENTIFIERS.has(item.identifier))
+      .map(toAudioOption));
+
+    const mp3QuranAudio = mp3QuranResponse.data.reciters
+      .filter(item => MP3_QURAN_RECITER_IDS.has(item.id))
+      .map(toMp3QuranOption)
+      .filter(Boolean);
+
+    return [...alQuranAudio, ...mp3QuranAudio];
   } catch (error) {
     console.error('Error fetching data: ', error);
     // Handle errors here or throw them to be handled where the function is called

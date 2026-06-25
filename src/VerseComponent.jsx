@@ -82,6 +82,7 @@ const toArabicNumber = (value) => (
 );
 
 const playbackSpeedOptions = [0.75, 1, 1.25, 1.5, 2];
+const configPlaybackSpeedPresets = [0.25, 1, 1.25, 1.5, 2];
 const DEFAULT_PLAYBACK_SPEED = 1;
 const DEFAULT_REPEAT_EACH_VERSE = 1;
 const DEFAULT_LOOP_LESSON = false;
@@ -96,6 +97,12 @@ const clampRepeatEachVerse = (value) => Math.min(
 );
 
 const getAudioVerseId = (verseId) => String(verseId ?? '').split('.')[0];
+
+const clampPlaybackSpeed = (value) => Math.min(2, Math.max(0.25, Number(value) || DEFAULT_PLAYBACK_SPEED));
+
+const formatConfigPlaybackSpeedLabel = (speed) => (
+  Number.isInteger(speed) ? `${speed}.0` : String(speed)
+);
 
 const getScrollTop = () => (
   window.scrollY
@@ -139,6 +146,37 @@ const scheduleVerseScrollToTop = (verseId) => {
   });
 };
 
+const normalizeAudioOption = (audio) => {
+  if (!audio) return null;
+  if (typeof audio === 'string') {
+    return {
+      source: 'alquran',
+      audioType: 'ayah',
+      identifier: audio,
+    };
+  }
+
+  return audio;
+};
+
+const getMp3QuranSurahAudioUrl = (audioOption, surahId) => {
+  if (!audioOption?.server || !surahId) return '';
+
+  const baseUrl = audioOption.server.endsWith('/') ? audioOption.server : `${audioOption.server}/`;
+  return `${baseUrl}${String(surahId).padStart(3, '0')}.mp3`;
+};
+
+const getAudioPlayerSrc = (audioOption, surahId, verseAudioId) => {
+  if (!audioOption) return '';
+
+  if (audioOption.source === 'mp3quran') {
+    return getMp3QuranSurahAudioUrl(audioOption, surahId);
+  }
+
+  if (!audioOption.identifier || !verseAudioId) return '';
+  return `https://cdn.islamic.network/quran/audio/128/${audioOption.identifier}/${verseAudioId}.mp3`;
+};
+
 const VerseComponent = ({
   surah,
   author,
@@ -165,12 +203,16 @@ const VerseComponent = ({
   const [currentVerseRepeat, setCurrentVerseRepeat] = useState(1);
   const [audioReplayKey, setAudioReplayKey] = useState(0);
   const verseCount = dataVerse?.verse_count || dataVerse?.verses?.length || 0;
+  const selectedAudio = normalizeAudioOption(audio);
+  const isMp3QuranAudio = selectedAudio?.source === 'mp3quran';
+  const audioPlayerSrc = getAudioPlayerSrc(selectedAudio, surah, secilenSound);
+  const mp3QuranSurahAvailable = !isMp3QuranAudio || selectedAudio?.surahList?.includes(surah);
 
   useEffect(() => {
     document.querySelectorAll('audio').forEach((audioElement) => {
       audioElement.playbackRate = playbackSpeed;
     });
-  }, [playbackSpeed, audioDrawerOpen, mealOpen, secilenSound, dataVerse?.audio?.mp3]);
+  }, [playbackSpeed, audioDrawerOpen, mealOpen, secilenSound, dataVerse?.audio?.mp3, audioPlayerSrc]);
 
   const renderPlaybackSpeedControl = (labelId) => (
     <FormControl size="small" sx={{ flex: '0 0 96px', minWidth: 96 }}>
@@ -264,8 +306,26 @@ const VerseComponent = ({
   };
 
   const handleStartLesson = () => {
-    if (!audio) {
+    if (!selectedAudio) {
       toast.error('Lütfen Seslendiren Seçiniz');
+      return;
+    }
+
+    if (isMp3QuranAudio) {
+      if (!mp3QuranSurahAvailable) {
+        toast.error('Seçilen seslendiren bu sure için uygun değil.');
+        return;
+      }
+
+      setConfigDrawerOpen(false);
+      setAudioDrawerOpen(true);
+      setLessonMode(false);
+      setConfigPlaybackActive(false);
+      setSecilenSound(`surah-${surah}`);
+      setActiveVerseId(null);
+      setCurrentVerseRepeat(1);
+      setAudioReplayKey((prevKey) => prevKey + 1);
+      toast.info('MP3Quran kaynağı sure bazlıdır; seçili surenin tamamı oynatılıyor.');
       return;
     }
 
@@ -338,6 +398,7 @@ const VerseComponent = ({
                 value={selectedStartVerse}
                 label="Başlangıç"
                 onChange={handleStartVerseChange}
+                disabled={isMp3QuranAudio}
               >
                 {verseOptions.map((verseNumber) => (
                   <MenuItem key={verseNumber} value={verseNumber}>
@@ -353,6 +414,7 @@ const VerseComponent = ({
                 value={selectedEndVerse}
                 label="Bitiş"
                 onChange={handleEndVerseChange}
+                disabled={isMp3QuranAudio}
               >
                 {verseOptions.map((verseNumber) => (
                   <MenuItem key={verseNumber} value={verseNumber}>
@@ -390,6 +452,7 @@ const VerseComponent = ({
               label="Tekrar"
               value={repeatEachVerse}
               onChange={(event) => setRepeatEachVerse(clampRepeatEachVerse(event.target.value))}
+              disabled={isMp3QuranAudio}
               slotProps={{
                 htmlInput: {
                   min: MIN_REPEAT_EACH_VERSE,
@@ -409,7 +472,7 @@ const VerseComponent = ({
                     aria-label="Tekrar sayısını azalt"
                     size="small"
                     onClick={() => setRepeatEachVerse((value) => clampRepeatEachVerse(value - 1))}
-                    disabled={repeatEachVerse <= MIN_REPEAT_EACH_VERSE}
+                    disabled={isMp3QuranAudio || repeatEachVerse <= MIN_REPEAT_EACH_VERSE}
                     sx={{ color: '#6f7745', ml: -0.75 }}
                   >
                     <RemoveIcon fontSize="small" />
@@ -421,7 +484,7 @@ const VerseComponent = ({
                       aria-label="Tekrar sayısını azalt"
                       size="small"
                       onClick={() => setRepeatEachVerse((value) => clampRepeatEachVerse(value - 1))}
-                      disabled={repeatEachVerse <= MIN_REPEAT_EACH_VERSE}
+                      disabled={isMp3QuranAudio || repeatEachVerse <= MIN_REPEAT_EACH_VERSE}
                       sx={{ color: '#6f7745' }}
                     >
                       <RemoveIcon fontSize="small" />
@@ -430,7 +493,7 @@ const VerseComponent = ({
                       aria-label="Tekrar sayısını artır"
                       size="small"
                       onClick={() => setRepeatEachVerse((value) => clampRepeatEachVerse(value + 1))}
-                      disabled={repeatEachVerse >= MAX_REPEAT_EACH_VERSE}
+                      disabled={isMp3QuranAudio || repeatEachVerse >= MAX_REPEAT_EACH_VERSE}
                       sx={{ color: '#6f7745' }}
                     >
                       <AddIcon fontSize="small" />
@@ -444,6 +507,7 @@ const VerseComponent = ({
                 <Switch
                   checked={loopLesson}
                   onChange={(event) => setLoopLesson(event.target.checked)}
+                  disabled={isMp3QuranAudio}
                   sx={{
                     '& .MuiSwitch-switchBase.Mui-checked': {
                       color: '#6f7745',
@@ -467,31 +531,143 @@ const VerseComponent = ({
           </Box>
           <Box sx={{ mt: 2 }}>
             <Typography
-              id="config-playback-speed-slider"
               variant="body2"
               sx={{ mb: 0.75, color: '#4f4a33', fontWeight: 800 }}
             >
               Oynatma hızı: {playbackSpeed}x
             </Typography>
-            <Slider
-              aria-labelledby="config-playback-speed-slider"
-              value={playbackSpeed}
-              min={0.75}
-              max={2}
-              step={0.25}
-              marks={playbackSpeedOptions.map((speed) => ({
-                value: speed,
-                label: `${speed}x`,
-              }))}
-              onChange={(event, value) => setPlaybackSpeed(Number(value))}
+            <Box
               sx={{
-                color: '#6f7745',
-                '& .MuiSlider-markLabel': {
-                  color: '#4f4a33',
-                  fontSize: '0.75rem',
-                },
+                px: 1,
+                py: 1.2,
+                backgroundColor: '#fff',
+                border: '1px solid rgba(142, 118, 63, 0.28)',
+                borderRadius: 1,
               }}
-            />
+            >
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: '40px minmax(0, 1fr) 40px',
+                  alignItems: 'center',
+                  gap: 1.25,
+                }}
+              >
+                <IconButton
+                  aria-label="Oynatma hızını azalt"
+                  onClick={() => setPlaybackSpeed((value) => clampPlaybackSpeed(value - 0.25))}
+                  disabled={playbackSpeed <= 0.25}
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    color: '#4f4a33',
+                    backgroundColor: 'rgba(111, 119, 69, 0.14)',
+                    '&:hover': { backgroundColor: 'rgba(111, 119, 69, 0.22)' },
+                    '&.Mui-disabled': {
+                      color: 'rgba(79, 74, 51, 0.32)',
+                      backgroundColor: 'rgba(111, 119, 69, 0.08)',
+                    },
+                  }}
+                >
+                  <RemoveIcon />
+                </IconButton>
+                <Slider
+                  aria-label="Oynatma hızı"
+                  value={playbackSpeed}
+                  min={0.25}
+                  max={2}
+                  step={0.25}
+                  onChange={(event, value) => setPlaybackSpeed(clampPlaybackSpeed(value))}
+                  sx={{
+                    color: '#6f7745',
+                    height: 3,
+                    p: 0,
+                    '& .MuiSlider-rail': {
+                      opacity: 1,
+                      backgroundColor: 'rgba(79, 74, 51, 0.28)',
+                    },
+                    '& .MuiSlider-track': {
+                      border: 0,
+                      backgroundColor: '#6f7745',
+                    },
+                    '& .MuiSlider-thumb': {
+                      width: 16,
+                      height: 16,
+                      backgroundColor: '#6f7745',
+                      boxShadow: 'none',
+                      '&:hover, &.Mui-focusVisible': {
+                        boxShadow: '0 0 0 6px rgba(111, 119, 69, 0.16)',
+                      },
+                    },
+                  }}
+                />
+                <IconButton
+                  aria-label="Oynatma hızını artır"
+                  onClick={() => setPlaybackSpeed((value) => clampPlaybackSpeed(value + 0.25))}
+                  disabled={playbackSpeed >= 2}
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    color: '#4f4a33',
+                    backgroundColor: 'rgba(111, 119, 69, 0.14)',
+                    '&:hover': { backgroundColor: 'rgba(111, 119, 69, 0.22)' },
+                    '&.Mui-disabled': {
+                      color: 'rgba(79, 74, 51, 0.32)',
+                      backgroundColor: 'rgba(111, 119, 69, 0.08)',
+                    },
+                  }}
+                >
+                  <AddIcon />
+                </IconButton>
+              </Box>
+              <Box
+                role="radiogroup"
+                aria-label="Oynatma hızı"
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+                  gap: 1,
+                  mt: 1,
+                }}
+              >
+                {configPlaybackSpeedPresets.map((speed) => {
+                  const selected = playbackSpeed === speed;
+
+                  return (
+                    <Button
+                      key={speed}
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setPlaybackSpeed(speed)}
+                      disableElevation
+                      variant="contained"
+                      sx={{
+                        position: 'relative',
+                        minWidth: 0,
+                        minHeight: 34,
+                        px: 0.5,
+                        py: 0.5,
+                        color: selected ? '#fff8d9' : '#4f4a33',
+                        backgroundColor: selected ? '#6f7745' : 'rgba(111, 119, 69, 0.14)',
+                        borderRadius: 999,
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        textTransform: 'none',
+                        '&:hover': {
+                          backgroundColor: selected ? '#5b6438' : 'rgba(111, 119, 69, 0.22)',
+                        },
+                        '@media (max-width: 420px)': {
+                          fontSize: '0.7rem',
+                          px: 0.35,
+                        },
+                      }}
+                    >
+                      {formatConfigPlaybackSpeedLabel(speed)}
+                    </Button>
+                  );
+                })}
+              </Box>
+            </Box>
           </Box>
         </Box>
         <Button
@@ -613,7 +789,7 @@ const VerseComponent = ({
           key={audioReplayKey}
           className="quran-audio-player"
           autoPlay
-          src={`https://cdn.islamic.network/quran/audio/128/${audio}/${secilenSound}.mp3`}
+          src={audioPlayerSrc}
           width="100%"
           color="#cfcfcf"
           sliderColor="#d7b765"
@@ -694,10 +870,28 @@ const VerseComponent = ({
   };
 
   const handleVerseAudioClick = (verseId) => {
-    if (!audio) {
+    if (!selectedAudio) {
       toast.error('Lütfen Seslendiren Seçiniz');
       return;
     }
+
+    if (isMp3QuranAudio) {
+      if (!mp3QuranSurahAvailable) {
+        toast.error('Seçilen seslendiren bu sure için uygun değil.');
+        return;
+      }
+
+      resetLessonSettings();
+      setAudioDrawerOpen(true);
+      setLessonMode(false);
+      setSecilenSound(`surah-${surah}`);
+      setActiveVerseId(null);
+      setCurrentVerseRepeat(1);
+      setAudioReplayKey((prevKey) => prevKey + 1);
+      toast.info('MP3Quran kaynağı sure bazlıdır; seçili surenin tamamı oynatılıyor.');
+      return;
+    }
+
     resetLessonSettings();
     setAudioDrawerOpen(true);
     setLessonMode(true);
@@ -885,7 +1079,11 @@ const VerseComponent = ({
             </div>
           )}
 
-          {dataVerse?.verses?.map(item => (
+          {dataVerse?.verses?.map(item => {
+            const isSurahAudioButton = isMp3QuranAudio && item.verse_number === 1;
+            const isDisabledSurahAudioButton = isMp3QuranAudio && item.verse_number !== 1;
+
+            return (
             <Fragment key={item.id}>
               {gorunum && <Divider sx={{ my: 0.5 }} />}
               {!gorunum && (
@@ -894,6 +1092,7 @@ const VerseComponent = ({
                   variant="contained"
                   endIcon={<SendIcon />}
                   value={item.id}
+                  disabled={isDisabledSurahAudioButton}
                   sx={{
                     backgroundColor: '#6f7745',
                     color: '#fff8d9',
@@ -901,16 +1100,21 @@ const VerseComponent = ({
                     '&:hover': {
                       backgroundColor: '#5b6438',
                     },
+                    '&.Mui-disabled': {
+                      backgroundColor: 'rgba(111, 119, 69, 0.28)',
+                      color: 'rgba(79, 74, 51, 0.5)',
+                      boxShadow: 'none',
+                    },
                   }}
                   onClick={(e) => {
-                    if (!audio) {
+                    if (!selectedAudio) {
                       toast.error('Lütfen Seslendiren Seçiniz');
                       return;
                     }
                     handleVerseAudioClick(e.currentTarget.value);
                   }}
                 >
-                  {item.verse_number + '. ayet'}
+                  {isSurahAudioButton ? 'Surenin Tamamı' : `${item.verse_number}. ayet`}
                 </Button>
                 </Divider>
               )}
@@ -955,6 +1159,7 @@ const VerseComponent = ({
                     variant="contained"
                     startIcon={<PlayArrowIcon fontSize="small" />}
                     value={item.id}
+                    disabled={isDisabledSurahAudioButton}
                     sx={{
                       minWidth: 64,
                       px: 1.25,
@@ -968,16 +1173,22 @@ const VerseComponent = ({
                       '&:hover': {
                         backgroundColor: '#5b6438',
                       },
+                      '&.Mui-disabled': {
+                        backgroundColor: 'rgba(111, 119, 69, 0.28)',
+                        color: 'rgba(79, 74, 51, 0.5)',
+                        boxShadow: 'none',
+                      },
                     }}
                     onClick={(e) => handleVerseAudioClick(e.currentTarget.value)}
                   >
-                    {item.verse_number + '.'}
+                    {isSurahAudioButton ? 'Surenin Tamamı' : `${item.verse_number}.`}
                   </Button>
                 )}
                 {item.transcription}
               </div>
             </Fragment>
-          ))}
+            );
+          })}
 
           <Drawer
             anchor="bottom"

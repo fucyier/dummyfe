@@ -4,7 +4,7 @@ import Paper from '@mui/material/Paper';
 import { styled } from '@mui/material/styles';
 import Divider from '@mui/material/Divider';
 import { AudioPlayer } from 'react-audio-play';
-import { AppBar, Autocomplete, Button, CircularProgress, Fab, FormControl, FormControlLabel, IconButton, InputLabel, MenuItem, Select, Slider, Switch, TextField } from '@mui/material';
+import { AppBar, Autocomplete, Button, CircularProgress, Dialog, DialogContent, DialogTitle, Fab, FormControl, FormControlLabel, IconButton, InputLabel, MenuItem, Select, Slider, Switch, TextField } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -14,10 +14,13 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import AutoStoriesIcon from '@mui/icons-material/AutoStories';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import { Fragment, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
+import { fetchVerseTafsirs, fetchVerseTranslationsByAuthors } from './api';
 
 const ArabicVerse = styled(Paper)(({ theme }) => ({
   backgroundColor: '#fff8d9',
@@ -202,6 +205,14 @@ const VerseComponent = ({
   const [configPlaybackActive, setConfigPlaybackActive] = useState(false);
   const [currentVerseRepeat, setCurrentVerseRepeat] = useState(1);
   const [audioReplayKey, setAudioReplayKey] = useState(0);
+  const [verseMealDialogOpen, setVerseMealDialogOpen] = useState(false);
+  const [verseMealDialogVerse, setVerseMealDialogVerse] = useState(null);
+  const [verseMealDialogLoading, setVerseMealDialogLoading] = useState(false);
+  const [verseMealTranslations, setVerseMealTranslations] = useState([]);
+  const [verseTafsirDialogOpen, setVerseTafsirDialogOpen] = useState(false);
+  const [verseTafsirDialogVerse, setVerseTafsirDialogVerse] = useState(null);
+  const [verseTafsirDialogLoading, setVerseTafsirDialogLoading] = useState(false);
+  const [verseTafsirs, setVerseTafsirs] = useState([]);
   const verseCount = dataVerse?.verse_count || dataVerse?.verses?.length || 0;
   const selectedAudio = normalizeAudioOption(audio);
   const isMp3QuranAudio = selectedAudio?.source === 'mp3quran';
@@ -909,6 +920,52 @@ const VerseComponent = ({
     resetLessonSettings();
   };
 
+  const handleMealShortcutClick = (verseItem) => {
+    setVerseMealDialogOpen(true);
+    setVerseMealDialogVerse(verseItem);
+    setVerseMealTranslations([]);
+    setVerseMealDialogLoading(true);
+
+    fetchVerseTranslationsByAuthors(surah, verseItem.verse_number, dataAuthor)
+      .then((translations) => {
+        setVerseMealTranslations(translations);
+      })
+      .catch((error) => {
+        console.error(error);
+        toast.error('Ayet mealleri yüklenirken bir hata oluştu.');
+      })
+      .finally(() => {
+        setVerseMealDialogLoading(false);
+      });
+  };
+
+  const handleVerseMealDialogClose = () => {
+    setVerseMealDialogOpen(false);
+  };
+
+  const handleTafsirShortcutClick = (verseItem) => {
+    setVerseTafsirDialogOpen(true);
+    setVerseTafsirDialogVerse(verseItem);
+    setVerseTafsirs([]);
+    setVerseTafsirDialogLoading(true);
+
+    fetchVerseTafsirs(surah, verseItem.verse_number)
+      .then((tafsirs) => {
+        setVerseTafsirs(tafsirs);
+      })
+      .catch((error) => {
+        console.error(error);
+        toast.error('Ayet tefsirleri yüklenirken bir hata oluştu.');
+      })
+      .finally(() => {
+        setVerseTafsirDialogLoading(false);
+      });
+  };
+
+  const handleVerseTafsirDialogClose = () => {
+    setVerseTafsirDialogOpen(false);
+  };
+
   const isActiveVerse = (verseId) => audioDrawerOpen && activeVerseId === String(verseId);
 
   return (
@@ -1119,6 +1176,73 @@ const VerseComponent = ({
                 </Divider>
               )}
               {!gorunum && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'flex-start',
+                    alignItems: 'center',
+                    gap: 0.25,
+                    mt: -1.8,
+                    mb: -0.2,
+                    pl: { xs: 0.5, sm: 2 },
+                  }}
+                >
+                  <Button
+                    variant="text"
+                    size="small"
+                    startIcon={<MenuBookIcon sx={{ fontSize: { xs: 26, sm: 28 } }} />}
+                    onClick={() => handleMealShortcutClick(item)}
+                    sx={{
+                      minHeight: 22,
+                      px: 0.35,
+                      py: 0,
+                      color: '#8b8f8a',
+                      fontWeight: 700,
+                      fontSize: { xs: '0.82rem', sm: '0.95rem' },
+                      lineHeight: 1,
+                      textTransform: 'none',
+                      backgroundColor: 'transparent',
+                      '&:hover': {
+                        color: '#6f7745',
+                        backgroundColor: 'rgba(111, 119, 69, 0.08)',
+                      },
+                      '& .MuiButton-startIcon': {
+                        mr: 0.35,
+                      },
+                    }}
+                  >
+                    Meal
+                  </Button>
+                  <Divider orientation="vertical" flexItem sx={{ my: 0.15, borderColor: 'rgba(139, 143, 138, 0.24)' }} />
+                  <Button
+                    variant="text"
+                    size="small"
+                    startIcon={<AutoStoriesIcon sx={{ fontSize: { xs: 26, sm: 28 } }} />}
+                    onClick={() => handleTafsirShortcutClick(item)}
+                    sx={{
+                      minHeight: 22,
+                      px: 0.35,
+                      py: 0,
+                      color: '#8b8f8a',
+                      fontWeight: 700,
+                      fontSize: { xs: '0.82rem', sm: '0.95rem' },
+                      lineHeight: 1,
+                      textTransform: 'none',
+                      backgroundColor: 'transparent',
+                      '&:hover': {
+                        color: '#6f7745',
+                        backgroundColor: 'rgba(111, 119, 69, 0.08)',
+                      },
+                      '& .MuiButton-startIcon': {
+                        mr: 0.35,
+                      },
+                    }}
+                  >
+                    Tefsir
+                  </Button>
+                </Box>
+              )}
+              {!gorunum && (
                 <ArabicVerse
                   id={`verse-${item.id}`}
                   value={item.id}
@@ -1285,6 +1409,126 @@ const VerseComponent = ({
           </Button>
         </AppBar>
       )}
+
+      <Dialog
+        open={verseMealDialogOpen}
+        onClose={handleVerseMealDialogClose}
+        fullWidth
+        maxWidth="md"
+        scroll="paper"
+        disableScrollLock
+        PaperProps={{
+          sx: {
+            borderRadius: 1,
+            backgroundColor: '#fffdf4',
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            pr: 7,
+            color: '#6f5a22',
+            fontWeight: 800,
+          }}
+        >
+          {selectedSurah && verseMealDialogVerse
+            ? `${selectedSurah.name} Suresi ${verseMealDialogVerse.verse_number}. Ayet Mealleri`
+            : 'Ayet Mealleri'}
+          <IconButton
+            aria-label="Mealleri kapat"
+            onClick={handleVerseMealDialogClose}
+            sx={{
+              position: 'absolute',
+              right: 12,
+              top: 10,
+              color: '#6f5a22',
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ backgroundColor: '#fffdf4' }}>
+          {verseMealDialogLoading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
+              <CircularProgress sx={{ color: '#6f7745' }} />
+            </Box>
+          )}
+          {!verseMealDialogLoading && verseMealTranslations.length === 0 && (
+            <Typography>Meal bulunamadı.</Typography>
+          )}
+          {!verseMealDialogLoading && verseMealTranslations.map((item, index) => (
+            <Box key={item.authorId} sx={{ mb: 2, textAlign: 'left' }}>
+              <Typography variant="subtitle2" sx={{ color: '#6f7745', fontWeight: 900, mb: 0.5 }}>
+                {item.authorName}
+              </Typography>
+              <Typography variant="body1">
+                {item.text}
+              </Typography>
+              {index < verseMealTranslations.length - 1 && <Divider sx={{ mt: 2 }} />}
+            </Box>
+          ))}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={verseTafsirDialogOpen}
+        onClose={handleVerseTafsirDialogClose}
+        fullWidth
+        maxWidth="md"
+        scroll="paper"
+        disableScrollLock
+        PaperProps={{
+          sx: {
+            borderRadius: 1,
+            backgroundColor: '#fffdf4',
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            pr: 7,
+            color: '#6f5a22',
+            fontWeight: 800,
+          }}
+        >
+          {selectedSurah && verseTafsirDialogVerse
+            ? `${selectedSurah.name} Suresi ${verseTafsirDialogVerse.verse_number}. Ayet Tefsirleri`
+            : 'Ayet Tefsirleri'}
+          <IconButton
+            aria-label="Tefsirleri kapat"
+            onClick={handleVerseTafsirDialogClose}
+            sx={{
+              position: 'absolute',
+              right: 12,
+              top: 10,
+              color: '#6f5a22',
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ backgroundColor: '#fffdf4' }}>
+          {verseTafsirDialogLoading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
+              <CircularProgress sx={{ color: '#6f7745' }} />
+            </Box>
+          )}
+          {!verseTafsirDialogLoading && verseTafsirs.length === 0 && (
+            <Typography>Tefsir bulunamadı.</Typography>
+          )}
+          {!verseTafsirDialogLoading && verseTafsirs.map((item, index) => (
+            <Box key={item.slug} sx={{ mb: 2, textAlign: 'left' }}>
+              <Typography variant="subtitle2" sx={{ color: '#6f7745', fontWeight: 900, mb: 0.5 }}>
+                {item.name}
+              </Typography>
+              <Typography variant="body1">
+                {item.text}
+              </Typography>
+              {index < verseTafsirs.length - 1 && <Divider sx={{ mt: 2 }} />}
+            </Box>
+          ))}
+        </DialogContent>
+      </Dialog>
 
       <Drawer anchor="bottom" open={mealOpen} onClose={() => setMealOpen(false)}>
         {mealDrawerContent}

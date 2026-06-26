@@ -117,6 +117,11 @@ const slugifySurahName = (name) => (
 
 const getSurahPath = (surahItem) => {
   const slug = slugifySurahName(surahItem?.name);
+  return slug ? `/sure/${slug}` : '/';
+};
+
+const getLegacySurahPath = (surahItem) => {
+  const slug = slugifySurahName(surahItem?.name);
   return slug ? `/${slug}_suresi` : '/';
 };
 
@@ -124,7 +129,10 @@ const getSurahFromPath = (surahList) => {
   const currentPath = decodeURIComponent(window.location.pathname || '').replace(/^\/+|\/+$/g, '');
   if (!currentPath) return null;
 
-  return surahList.find((item) => currentPath === getSurahPath(item).slice(1)) || null;
+  return surahList.find((item) => (
+    currentPath === getSurahPath(item).slice(1)
+    || currentPath === getLegacySurahPath(item).slice(1)
+  )) || null;
 };
 
 const updateSurahPath = (surahItem) => {

@@ -10,6 +10,7 @@ const API_SURAH_VERSE_URL = 'https://api.acikkuran.com/surah/';
 const API_CLOUD_SURAH_LIST_URL = 'https://api.alquran.cloud/v1/surah/'; 
 const API_SURAH_AUTHOR_VERSE_URL = 'https://api.acikkuran.com/surah/{surahId}?author={authorId}'; 
 const API_CLOUD_SURAH_OKUYANLARIN_LISTESI_URL = 'https://cdn.islamic.network/quran/info/by-surah/info.json'; 
+const API_TAFSIR_BASE_URL = 'https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@main/tafsir';
 
 const AVAILABLE_AUDIO_IDENTIFIERS = new Set([
   'ar.shaatree',
@@ -50,6 +51,21 @@ const AL_QURAN_CLOUD_KAABA_IMAM_IDENTIFIERS = new Set([
   'ar.muhammadayyoub',
   'ar.muhammadayyoub-2',
 ]);
+
+const TURKISH_TAFSIR_EDITIONS = [
+  {
+    slug: 'tr-tafsir-ibne-kathir',
+    name: 'Tefsir İbn Kesir',
+  },
+  {
+    slug: 'turkish-mokhtasar',
+    name: 'Muhtasar Tefsir',
+  },
+  {
+    slug: 'turkish-tafsir-as-saadi-turkish',
+    name: 'Tefsir As-Saadi',
+  },
+];
 
 const toAudioOption = (item) => ({
   ...item,
@@ -214,4 +230,49 @@ export const fetchVerseList = async (surahId, authorId) => {
     // Handle errors here or throw them to be handled where the function is called
     throw error;
   }
+};
+
+export const fetchVerseTranslationsByAuthors = async (surahId, verseNumber, authors = []) => {
+  if (!surahId || !verseNumber || authors.length === 0) return [];
+
+  const results = await Promise.allSettled(
+    authors.map(async (author) => {
+      const response = await axios.get(API_SURAH_VERSE_URL + surahId, {
+        params: {
+          author: author.id,
+        },
+      });
+      const verse = response.data.data.verses.find(item => item.verse_number === verseNumber);
+
+      return {
+        authorId: author.id,
+        authorName: author.name,
+        text: verse?.translation?.text || '',
+      };
+    }),
+  );
+
+  return results
+    .filter(result => result.status === 'fulfilled' && result.value.text)
+    .map(result => result.value);
+};
+
+export const fetchVerseTafsirs = async (surahId, verseNumber) => {
+  if (!surahId || !verseNumber) return [];
+
+  const results = await Promise.allSettled(
+    TURKISH_TAFSIR_EDITIONS.map(async (edition) => {
+      const response = await axios.get(`${API_TAFSIR_BASE_URL}/${edition.slug}/${surahId}/${verseNumber}.json`);
+
+      return {
+        slug: edition.slug,
+        name: edition.name,
+        text: response.data?.text || '',
+      };
+    }),
+  );
+
+  return results
+    .filter(result => result.status === 'fulfilled' && result.value.text)
+    .map(result => result.value);
 };

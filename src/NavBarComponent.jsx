@@ -25,7 +25,14 @@ const NavBarComponent = () => {
           }}
         >
         <Toolbar variant="dense" id="back-to-top-anchor">
-         <Avatar src="../static/images/icons-Allah.png" />
+         <Avatar
+          src="../static/images/icons-Allah.png"
+          sx={{
+            '& img': {
+              filter: 'invert(1)',
+            },
+          }}
+         />
          <Typography
             variant="h6"
             noWrap

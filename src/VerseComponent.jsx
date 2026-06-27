@@ -8,6 +8,7 @@ import { AppBar, Autocomplete, Button, CircularProgress, Dialog, DialogContent, 
 import SendIcon from '@mui/icons-material/Send';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -93,6 +94,45 @@ const DEFAULT_START_VERSE = 1;
 const DEFAULT_END_VERSE = 0;
 const MIN_REPEAT_EACH_VERSE = 1;
 const MAX_REPEAT_EACH_VERSE = 99;
+
+const compactAutocompleteSlotProps = {
+  paper: {
+    sx: {
+      mt: 0.5,
+      '& .MuiAutocomplete-groupLabel': {
+        minHeight: { xs: 28, sm: 36 },
+        lineHeight: { xs: '28px', sm: '36px' },
+        fontSize: { xs: '0.72rem', sm: '0.82rem' },
+        fontWeight: 800,
+      },
+      '& .MuiAutocomplete-option': {
+        minHeight: { xs: 32, sm: 40 },
+        py: { xs: 0.35, sm: 0.75 },
+        px: { xs: 1, sm: 2 },
+        fontSize: { xs: '0.78rem', sm: '0.9rem' },
+      },
+    },
+  },
+  listbox: {
+    sx: {
+      maxHeight: { xs: '42vh', sm: 320 },
+    },
+  },
+};
+
+const compactTextFieldSx = {
+  '& .MuiInputBase-root': {
+    minHeight: { xs: 36, sm: 40 },
+  },
+  '& .MuiInputBase-input': {
+    fontSize: { xs: '0.78rem', sm: '0.88rem' },
+    fontWeight: 700,
+    py: { xs: 0.55, sm: 0.8 },
+  },
+  '& .MuiInputLabel-root': {
+    fontSize: { xs: '0.78rem', sm: '0.9rem' },
+  },
+};
 
 const clampRepeatEachVerse = (value) => Math.min(
   MAX_REPEAT_EACH_VERSE,
@@ -518,7 +558,6 @@ const VerseComponent = ({
                 <Switch
                   checked={loopLesson}
                   onChange={(event) => setLoopLesson(event.target.checked)}
-                  disabled={isMp3QuranAudio}
                   sx={{
                     '& .MuiSwitch-switchBase.Mui-checked': {
                       color: '#6f7745',
@@ -704,38 +743,70 @@ const VerseComponent = ({
   );
 
   const mealDrawerContent = (
-    <Box sx={{ maxHeight: '70vh', overflowY: 'auto', p: 2, pb: 4 }}>
+    <Box sx={{ maxHeight: '70vh', overflowY: 'auto', px: { xs: 1.25, sm: 2 }, pb: 3 }}>
       <Box
         sx={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 2,
-          mb: 2,
+          position: 'sticky',
+          top: 0,
+          zIndex: 2,
+          pt: 1,
+          pb: 1,
+          backgroundColor: '#fffdf4',
+          borderBottom: '1px solid rgba(142, 118, 63, 0.18)',
         }}
       >
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>
-          {selectedSurah ? `${selectedSurah.name} Suresi` : 'Türkçe Meal'}
-        </Typography>
-        <FormControl variant="outlined" sx={{ minWidth: { xs: '100%', sm: 240 } }}>
-          <Autocomplete
-            autoHighlight
-            openOnFocus
-            options={dataAuthor}
-            value={dataAuthor.find(item => item.id === author) || null}
-            getOptionLabel={(option) => option.name || ''}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
-            onChange={(event, newValue) => onAuthorChange?.(newValue)}
-            noOptionsText="Sonuc bulunamadi"
-            renderInput={(params) => (
-              <TextField {...params} label="Meal" variant="outlined" />
-            )}
-          />
-        </FormControl>
+        <Button
+          fullWidth
+          startIcon={<KeyboardArrowDownIcon />}
+          onClick={() => setMealOpen(false)}
+          sx={{
+            justifyContent: 'center',
+            minHeight: 34,
+            mb: 1,
+            color: '#fff8d9',
+            backgroundColor: '#54613d',
+            fontWeight: 800,
+            textTransform: 'none',
+            '&:hover': {
+              backgroundColor: '#465332',
+            },
+          }}
+        >
+          Meali Kapat
+        </Button>
+        <Box
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1,
+          }}
+        >
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.15 }}>
+            {selectedSurah ? `${selectedSurah.name} Suresi` : 'Türkçe Meal'}
+          </Typography>
+          <FormControl variant="outlined" sx={{ minWidth: { xs: '100%', sm: 220 } }}>
+            <Autocomplete
+              size="small"
+              autoHighlight
+              openOnFocus
+              slotProps={compactAutocompleteSlotProps}
+              options={dataAuthor}
+              value={dataAuthor.find(item => item.id === author) || null}
+              getOptionLabel={(option) => option.name || ''}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              onChange={(event, newValue) => onAuthorChange?.(newValue)}
+              noOptionsText="Sonuc bulunamadi"
+              renderInput={(params) => (
+                <TextField {...params} label="Meal" variant="outlined" size="small" sx={compactTextFieldSx} />
+              )}
+            />
+          </FormControl>
+        </Box>
       </Box>
       {dataVerse?.audio?.mp3 && (
-        <Box sx={{ mb: 2, maxWidth: '100%', overflow: 'hidden' }}>
+        <Box sx={{ mb: 1, maxWidth: '100%', overflow: 'hidden' }}>
           <Box
             sx={{
               display: 'flex',
@@ -766,14 +837,14 @@ const VerseComponent = ({
         <Typography sx={{ textAlign: 'left' }}>Meal seçiniz.</Typography>
       )}
       {author !== 0 && mealItems.map((item, index) => (
-        <Box key={item.id || index} sx={{ mb: 2, textAlign: 'left' }}>
-          <Typography variant="body1">
+        <Box key={item.id || index} sx={{ mb: 1, textAlign: 'left' }}>
+          <Typography variant="body2" sx={{ lineHeight: 1.45 }}>
             <Box component="span" sx={{ fontWeight: 700, mr: 0.75 }}>
               {index === 0 ? 'Besmele' : `${item.verse_number}.`}
             </Box>
             {item.translation.text}
           </Typography>
-          {index < mealItems.length - 1 && <Divider sx={{ mt: 2 }} />}
+          {index < mealItems.length - 1 && <Divider sx={{ mt: 1 }} />}
         </Box>
       ))}
     </Box>
@@ -806,6 +877,15 @@ const VerseComponent = ({
           sliderColor="#d7b765"
           backgroundColor="#54613d"
           onEnd={() => {
+            if (isMp3QuranAudio && loopLesson) {
+              setAudioDrawerOpen(true);
+              setSecilenSound(`surah-${surah}`);
+              setActiveVerseId(null);
+              setCurrentVerseRepeat(1);
+              setAudioReplayKey((prevKey) => prevKey + 1);
+              return;
+            }
+
             if (!lessonMode) {
               setAudioDrawerOpen(false);
               setSecilenSound(null);

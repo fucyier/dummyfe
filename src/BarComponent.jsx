@@ -383,7 +383,8 @@ const getVerseList =function (surahId,authorId){
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Sure"
+                      label="Sure Seçiniz"
+                      placeholder="Sure Seçiniz"
                       variant="outlined"
                       size="small"
                       sx={topControlTextFieldSx}
@@ -408,7 +409,8 @@ const getVerseList =function (surahId,authorId){
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Meal"
+                      label="Meal Seçiniz"
+                      placeholder="Meal Seçiniz"
                       variant="outlined"
                       size="small"
                       sx={topControlTextFieldSx}
@@ -444,7 +446,8 @@ const getVerseList =function (surahId,authorId){
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Seslendiren"
+                      label="Seslendiren Seçiniz"
+                      placeholder="Seslendiren Seçiniz"
                       variant="outlined"
                       size="small"
                       sx={topControlTextFieldSx}

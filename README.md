@@ -2,6 +2,22 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
+## Quran Foundation API Proxy
+
+Quran Foundation credentials must stay on the server. In Vercel, add these Environment Variables:
+
+- `QF_ENV=production`
+- `QF_CLIENT_ID`
+- `QF_CLIENT_SECRET`
+
+The Vercel serverless proxy supports:
+
+- `GET /api/quran/content/api/v4/chapters`
+- `GET /api/quran/content/api/v4/verses/by_chapter/1?translations=77&fields=text_uthmani`
+- `GET /api/quran/search/api/v1/search?mode=quick&query=fatiha`
+
+For local API testing, run the app with `vercel dev` so the `api/` functions are available.
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh

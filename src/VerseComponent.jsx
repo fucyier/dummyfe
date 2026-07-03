@@ -21,7 +21,7 @@ import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import { Fragment, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
-import { fetchVerseTafsirs, fetchVerseTranslationsByAuthors } from './api';
+import { fetchQuranFoundationAyahAudioUrl, fetchVerseTafsirs, fetchVerseTranslationsByAuthors } from './api';
 
 const ArabicVerse = styled(Paper)(({ theme }) => ({
   backgroundColor: '#fff8d9',
@@ -216,6 +216,10 @@ const getAudioPlayerSrc = (audioOption, surahId, verseAudioId) => {
     return getMp3QuranSurahAudioUrl(audioOption, surahId);
   }
 
+  if (audioOption.source === 'quranfoundation') {
+    return verseAudioId || '';
+  }
+
   if (!audioOption.identifier || !verseAudioId) return '';
   return `https://cdn.islamic.network/quran/audio/128/${audioOption.identifier}/${verseAudioId}.mp3`;
 };
@@ -228,6 +232,7 @@ const VerseComponent = ({
   dataVerse,
   dataSurah = [],
   dataAuthor = [],
+  mealDrawerOpenSignal = 0,
   onAuthorChange,
   onSurahNavigate,
 }) => {
@@ -256,6 +261,7 @@ const VerseComponent = ({
   const verseCount = dataVerse?.verse_count || dataVerse?.verses?.length || 0;
   const selectedAudio = normalizeAudioOption(audio);
   const isMp3QuranAudio = selectedAudio?.source === 'mp3quran';
+  const isQuranFoundationAudio = selectedAudio?.source === 'quranfoundation';
   const audioPlayerSrc = getAudioPlayerSrc(selectedAudio, surah, secilenSound);
   const mp3QuranSurahAvailable = !isMp3QuranAudio || selectedAudio?.surahList?.includes(surah);
 
@@ -264,6 +270,12 @@ const VerseComponent = ({
       audioElement.playbackRate = playbackSpeed;
     });
   }, [playbackSpeed, audioDrawerOpen, mealOpen, secilenSound, dataVerse?.audio?.mp3, audioPlayerSrc]);
+
+  useEffect(() => {
+    if (mealDrawerOpenSignal > 0) {
+      setMealOpen(true);
+    }
+  }, [mealDrawerOpenSignal]);
 
   const renderPlaybackSpeedControl = (labelId) => (
     <FormControl size="small" sx={{ flex: '0 0 96px', minWidth: 96 }}>
@@ -356,7 +368,7 @@ const VerseComponent = ({
     }
   };
 
-  const handleStartLesson = () => {
+  const handleStartLesson = async () => {
     if (!selectedAudio) {
       toast.error('Lütfen Seslendiren Seçiniz');
       return;
@@ -390,15 +402,21 @@ const VerseComponent = ({
     }
 
     const firstVerseId = String(firstVerse.id);
-    setConfigDrawerOpen(false);
-    setAudioDrawerOpen(true);
-    setLessonMode(true);
-    setConfigPlaybackActive(true);
-    setSecilenSound(getAudioVerseId(firstVerseId));
-    setActiveVerseId(firstVerseId);
-    setCurrentVerseRepeat(1);
-    setAudioReplayKey((prevKey) => prevKey + 1);
-    scheduleVerseScrollToTop(firstVerseId);
+    try {
+      const firstSound = await loadSelectedAyahAudio(firstVerseId);
+      setConfigDrawerOpen(false);
+      setAudioDrawerOpen(true);
+      setLessonMode(true);
+      setConfigPlaybackActive(true);
+      setSecilenSound(firstSound);
+      setActiveVerseId(firstVerseId);
+      setCurrentVerseRepeat(1);
+      setAudioReplayKey((prevKey) => prevKey + 1);
+      scheduleVerseScrollToTop(firstVerseId);
+    } catch (error) {
+      console.error(error);
+      toast.error('Ayet sesi yüklenirken bir hata oluştu.');
+    }
   };
 
   const configDrawerContent = (
@@ -876,7 +894,7 @@ const VerseComponent = ({
           color="#cfcfcf"
           sliderColor="#d7b765"
           backgroundColor="#54613d"
-          onEnd={() => {
+          onEnd={async () => {
             if (isMp3QuranAudio && loopLesson) {
               setAudioDrawerOpen(true);
               setSecilenSound(`surah-${surah}`);
@@ -909,12 +927,22 @@ const VerseComponent = ({
 
             if (nextVerse) {
               const nextVerseId = String(nextVerse.id);
-              setAudioDrawerOpen(true);
-              setSecilenSound(getAudioVerseId(nextVerseId));
-              setActiveVerseId(nextVerseId);
-              setCurrentVerseRepeat(1);
-              setAudioReplayKey((prevKey) => prevKey + 1);
-              scheduleVerseScrollToTop(nextVerseId);
+              try {
+                const nextSound = await loadSelectedAyahAudio(nextVerseId);
+                setAudioDrawerOpen(true);
+                setSecilenSound(nextSound);
+                setActiveVerseId(nextVerseId);
+                setCurrentVerseRepeat(1);
+                setAudioReplayKey((prevKey) => prevKey + 1);
+                scheduleVerseScrollToTop(nextVerseId);
+              } catch (error) {
+                console.error(error);
+                toast.error('Ayet sesi yüklenirken bir hata oluştu.');
+                setAudioDrawerOpen(false);
+                setSecilenSound(null);
+                setActiveVerseId(null);
+                resetLessonSettings();
+              }
               return;
             }
 
@@ -924,12 +952,22 @@ const VerseComponent = ({
               );
               if (firstVerse) {
                 const firstVerseId = String(firstVerse.id);
-                setAudioDrawerOpen(true);
-                setSecilenSound(getAudioVerseId(firstVerseId));
-                setActiveVerseId(firstVerseId);
-                setCurrentVerseRepeat(1);
-                setAudioReplayKey((prevKey) => prevKey + 1);
-                scheduleVerseScrollToTop(firstVerseId);
+                try {
+                  const firstSound = await loadSelectedAyahAudio(firstVerseId);
+                  setAudioDrawerOpen(true);
+                  setSecilenSound(firstSound);
+                  setActiveVerseId(firstVerseId);
+                  setCurrentVerseRepeat(1);
+                  setAudioReplayKey((prevKey) => prevKey + 1);
+                  scheduleVerseScrollToTop(firstVerseId);
+                } catch (error) {
+                  console.error(error);
+                  toast.error('Ayet sesi yüklenirken bir hata oluştu.');
+                  setAudioDrawerOpen(false);
+                  setSecilenSound(null);
+                  setActiveVerseId(null);
+                  resetLessonSettings();
+                }
                 return;
               }
             }
@@ -960,7 +998,36 @@ const VerseComponent = ({
     });
   };
 
-  const handleVerseAudioClick = (verseId) => {
+  const loadSelectedAyahAudio = async (verseId) => {
+    if (!isQuranFoundationAudio) {
+      return getAudioVerseId(verseId);
+    }
+
+    const verseNumber = dataVerse?.verses?.find(item => String(item.id) === String(verseId))?.verse_number
+      || String(verseId).split('.')[1]
+      || verseId;
+    const audioUrl = await fetchQuranFoundationAyahAudioUrl(selectedAudio.recitationId, surah, verseNumber);
+
+    if (!audioUrl) {
+      throw new Error('Ayet ses dosyası bulunamadı.');
+    }
+
+    return audioUrl;
+  };
+
+  const startSelectedAyahAudio = async (verseId) => {
+    const nextSound = await loadSelectedAyahAudio(verseId);
+
+    setAudioDrawerOpen(true);
+    setLessonMode(true);
+    setSecilenSound(nextSound);
+    setActiveVerseId(String(verseId));
+    setCurrentVerseRepeat(1);
+    setAudioReplayKey((prevKey) => prevKey + 1);
+    scheduleVerseScrollToTop(verseId);
+  };
+
+  const handleVerseAudioClick = async (verseId) => {
     if (!selectedAudio) {
       toast.error('Lütfen Seslendiren Seçiniz');
       return;
@@ -984,13 +1051,12 @@ const VerseComponent = ({
     }
 
     resetLessonSettings();
-    setAudioDrawerOpen(true);
-    setLessonMode(true);
-    setSecilenSound(getAudioVerseId(verseId));
-    setActiveVerseId(String(verseId));
-    setCurrentVerseRepeat(1);
-    setAudioReplayKey((prevKey) => prevKey + 1);
-    scheduleVerseScrollToTop(verseId);
+    try {
+      await startSelectedAyahAudio(verseId);
+    } catch (error) {
+      console.error(error);
+      toast.error('Ayet sesi yüklenirken bir hata oluştu.');
+    }
   };
 
   const handleAudioDrawerClose = () => {

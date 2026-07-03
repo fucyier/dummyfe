@@ -10,7 +10,10 @@ const API_SURAH_VERSE_URL = 'https://api.acikkuran.com/surah/';
 const API_CLOUD_SURAH_LIST_URL = 'https://api.alquran.cloud/v1/surah/'; 
 const API_SURAH_AUTHOR_VERSE_URL = 'https://api.acikkuran.com/surah/{surahId}?author={authorId}'; 
 const API_CLOUD_SURAH_OKUYANLARIN_LISTESI_URL = 'https://cdn.islamic.network/quran/info/by-surah/info.json'; 
-const API_TAFSIR_BASE_URL = 'https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@main/tafsir';
+const QURAN_FOUNDATION_CONTENT_PROXY_URL = '/api/quran/content/api/v4';
+const QURAN_COM_API_V4_URL = 'https://api.quran.com/api/v4';
+const QURAN_FOUNDATION_VERSES_AUDIO_BASE_URL = 'https://verses.quran.foundation';
+const API_TAFSIR_FALLBACK_BASE_URL = 'https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@main/tafsir';
 
 const AVAILABLE_AUDIO_IDENTIFIERS = new Set([
   'ar.shaatree',
@@ -35,24 +38,75 @@ const AVAILABLE_AUDIO_IDENTIFIERS = new Set([
 ]);
 
 const MP3_QURAN_RECITER_IDS = new Set([
+  4, // Abu Bakr Al Shatri
+  5, // Ahmad Al-Ajmy
+  12, // Idrees Abkr
+  20, // Khalid Al-Jileel
+  21, // Khaled Al-Qahtani
+  31, // Saud Al-Shuraim
+  43, // Salah Albudair
+  46, // Salah Bukhatir
+  51, // Abdulbasit Abdulsamad
+  54, // Abdulrahman Alsudaes
+  60, // Abdullah Basfer
+  62, // Abdullah Al-Johany
+  67, // Abdulmohsen Al-Qasim
+  76, // Ali Jaber
+  81, // Fares Abbad
+  86, // Nasser Alqatami
+  89, // Hani Arrifai
+  92, // Yasser Al-Dosari
+  96, // Yahya Hawwa
+  102, // Maher Al Meaqli
+  107, // Mohammed Al-Lohaidan
+  111, // Mohammed Jibreel
+  123, // Mishary Alafasi
+  217, // Bandar Balilah
+  221, // Raad Al Kurdi
+  231, // Hazza Al-Balushi
+  253, // Islam Sobhi
+  259, // Ahmad Al Nufais
+  267, // Abdullah Kamel
+]);
+
+const MP3_QURAN_KAABA_IMAM_RECITER_IDS = new Set([
   31, // Saud Al-Shuraim
   54, // Abdulrahman Alsudaes
   62, // Abdullah Al-Johany
+  76, // Ali Jaber
   92, // Yasser Al-Dosari
   102, // Maher Al Meaqli
   217, // Bandar Balilah
 ]);
 
-const AL_QURAN_CLOUD_KAABA_IMAM_IDENTIFIERS = new Set([
-  'ar.hudhaify',
-  'ar.hudhaify-2',
-  'ar.mahermuaiqly',
-  'ar.mahermuaiqly-2',
-  'ar.muhammadayyoub',
-  'ar.muhammadayyoub-2',
+const QURAN_FOUNDATION_RECITATIONS = [
+  { id: 1, reciterName: 'AbdulBaset AbdulSamad', style: 'Mujawwad' },
+  { id: 2, reciterName: 'AbdulBaset AbdulSamad', style: 'Murattal' },
+  { id: 3, reciterName: 'Abdur-Rahman as-Sudais' },
+  { id: 4, reciterName: 'Abu Bakr al-Shatri' },
+  { id: 5, reciterName: 'Hani ar-Rifai' },
+  { id: 6, reciterName: 'Mahmoud Khalil Al-Husary' },
+  { id: 7, reciterName: 'Mishari Rashid al-Afasy' },
+  { id: 8, reciterName: 'Mohamed Siddiq al-Minshawi', style: 'Mujawwad' },
+  { id: 9, reciterName: 'Mohamed Siddiq al-Minshawi', style: 'Murattal' },
+  { id: 10, reciterName: 'Saud ash-Shuraym' },
+  { id: 11, reciterName: 'Mohamed al-Tablawi' },
+  { id: 12, reciterName: 'Mahmoud Khalil Al-Husary', style: 'Muallim' },
+];
+
+const QURAN_FOUNDATION_KAABA_IMAM_RECITATION_IDS = new Set([
+  3, // Abdur-Rahman as-Sudais
+  10, // Saud ash-Shuraym
 ]);
 
-const TURKISH_TAFSIR_EDITIONS = [
+const AL_QURAN_CLOUD_KAABA_IMAM_IDENTIFIERS = new Set([
+  'ar.mahermuaiqly',
+  'ar.mahermuaiqly-2',
+]);
+
+let turkishTafsirResourcesCache = null;
+
+const FALLBACK_TURKISH_TAFSIR_EDITIONS = [
   {
     slug: 'tr-tafsir-ibne-kathir',
     name: 'Tefsir İbn Kesir',
@@ -76,6 +130,17 @@ const toAudioOption = (item) => ({
   isKaabaImam: AL_QURAN_CLOUD_KAABA_IMAM_IDENTIFIERS.has(item.identifier),
 });
 
+const toQuranFoundationRecitationOption = (recitation) => ({
+  id: `quranfoundation:${recitation.id}`,
+  identifier: `quranfoundation:${recitation.id}`,
+  recitationId: recitation.id,
+  source: 'quranfoundation',
+  sourceLabel: 'Ayet Bazlı',
+  audioType: 'ayah',
+  englishName: [recitation.reciterName, recitation.style].filter(Boolean).join(' - '),
+  isKaabaImam: QURAN_FOUNDATION_KAABA_IMAM_RECITATION_IDS.has(recitation.id),
+});
+
 const toMp3QuranOption = (reciter) => {
   const fullMoshafs = reciter.moshaf?.filter(item => item.surah_total === 114) || [];
   const moshaf = fullMoshafs.find(item => /hafs|murattal/i.test(item.name))
@@ -90,7 +155,7 @@ const toMp3QuranOption = (reciter) => {
     sourceLabel: 'Sure Bazlı',
     audioType: 'surah',
     englishName: reciter.name,
-    isKaabaImam: true,
+    isKaabaImam: MP3_QURAN_KAABA_IMAM_RECITER_IDS.has(reciter.id),
     server: moshaf.server,
     surahList: String(moshaf.surah_list || '')
       .split(',')
@@ -111,6 +176,119 @@ const uniqueAudioByName = (items) => {
     seen.add(key);
     return true;
   });
+};
+
+const isTurkishResource = (item) => (
+  String(item?.language_name || '')
+    .trim()
+    .toLocaleLowerCase('en') === 'turkish'
+);
+
+const normalizeWhitespace = (text) => (
+  String(text || '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+);
+
+const tafsirHtmlToText = (html) => {
+  if (!html) return '';
+
+  if (typeof document === 'undefined') {
+    return normalizeWhitespace(String(html).replace(/<[^>]*>/g, ' '));
+  }
+
+  const container = document.createElement('div');
+  container.innerHTML = String(html)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|h[1-6]|li)>/gi, '\n');
+
+  return normalizeWhitespace(container.textContent || '');
+};
+
+const fetchTurkishTafsirResources = async () => {
+  if (turkishTafsirResourcesCache) return turkishTafsirResourcesCache;
+
+  const response = await axios.get(`${QURAN_FOUNDATION_CONTENT_PROXY_URL}/resources/tafsirs`, {
+    params: {
+      language: 'tr',
+    },
+  });
+
+  if (!Array.isArray(response.data?.tafsirs)) {
+    throw new Error('Quran Foundation tefsir kaynak listesi beklenen formatta donmedi.');
+  }
+
+  turkishTafsirResourcesCache = (response.data?.tafsirs || [])
+    .filter(isTurkishResource)
+    .sort((a, b) => (a?.name || '').localeCompare(b?.name || '', 'tr', { sensitivity: 'base' }));
+
+  return turkishTafsirResourcesCache;
+};
+
+const fetchFallbackTurkishVerseTafsirs = async (surahId, verseNumber) => {
+  const results = await Promise.allSettled(
+    FALLBACK_TURKISH_TAFSIR_EDITIONS.map(async (edition) => {
+      const response = await axios.get(`${API_TAFSIR_FALLBACK_BASE_URL}/${edition.slug}/${surahId}/${verseNumber}.json`);
+
+      return {
+        slug: edition.slug,
+        name: edition.name,
+        text: response.data?.text || '',
+      };
+    }),
+  );
+
+  return results
+    .filter(result => result.status === 'fulfilled' && result.value.text)
+    .map(result => result.value);
+};
+
+const normalizeQuranFoundationAudioUrl = (url) => {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+  const normalizedUrl = String(url).replace(/^\/+/, '');
+  if (/^[\w.-]+\.[a-z]{2,}\//i.test(normalizedUrl)) return `https://${normalizedUrl}`;
+
+  return `${QURAN_FOUNDATION_VERSES_AUDIO_BASE_URL}/${normalizedUrl}`;
+};
+
+const getQuranFoundationAudioUrlFromResponse = (response) => (
+  normalizeQuranFoundationAudioUrl(response.data?.audio_files?.[0]?.url)
+);
+
+export const fetchQuranFoundationAyahAudioUrl = async (recitationId, surahId, verseNumber) => {
+  if (!recitationId || !surahId || !verseNumber) return '';
+
+  const endpointPath = `/recitations/${recitationId}/by_ayah/${surahId}:${verseNumber}`;
+  const requestConfig = {
+    params: {
+      fields: 'url,verse_key',
+      per_page: 1,
+    },
+  };
+
+  try {
+    const response = await axios.get(`${QURAN_FOUNDATION_CONTENT_PROXY_URL}${endpointPath}`, requestConfig);
+    const audioUrl = getQuranFoundationAudioUrlFromResponse(response);
+
+    if (!audioUrl) {
+      throw new Error('Quran Foundation proxy returned no audio URL.');
+    }
+
+    return audioUrl;
+  } catch (error) {
+    console.debug(`Quran Foundation ayah audio lookup failed, using Quran.com public fallback: ${error?.message || 'unknown error'}`);
+    const response = await axios.get(`${QURAN_COM_API_V4_URL}${endpointPath}`, requestConfig);
+    const audioUrl = getQuranFoundationAudioUrlFromResponse(response);
+
+    if (!audioUrl) {
+      throw new Error('Quran.com fallback returned no audio URL.');
+    }
+
+    return audioUrl;
+  }
 };
 
 export const fetchSurahList = async () => {
@@ -146,12 +324,14 @@ export const fetchAudioList = async () => {
       .filter(item => AVAILABLE_AUDIO_IDENTIFIERS.has(item.identifier))
       .map(toAudioOption));
 
+    const quranFoundationAudio = QURAN_FOUNDATION_RECITATIONS.map(toQuranFoundationRecitationOption);
+
     const mp3QuranAudio = mp3QuranResponse.data.reciters
       .filter(item => MP3_QURAN_RECITER_IDS.has(item.id))
       .map(toMp3QuranOption)
       .filter(Boolean);
 
-    return [...alQuranAudio, ...mp3QuranAudio];
+    return [...alQuranAudio, ...quranFoundationAudio, ...mp3QuranAudio];
   } catch (error) {
     console.error('Error fetching data: ', error);
     // Handle errors here or throw them to be handled where the function is called
@@ -260,19 +440,45 @@ export const fetchVerseTranslationsByAuthors = async (surahId, verseNumber, auth
 export const fetchVerseTafsirs = async (surahId, verseNumber) => {
   if (!surahId || !verseNumber) return [];
 
-  const results = await Promise.allSettled(
-    TURKISH_TAFSIR_EDITIONS.map(async (edition) => {
-      const response = await axios.get(`${API_TAFSIR_BASE_URL}/${edition.slug}/${surahId}/${verseNumber}.json`);
+  try {
+    const tafsirResources = await fetchTurkishTafsirResources();
+    const tafsirIds = tafsirResources.map(item => item.id).filter(Boolean);
 
-      return {
-        slug: edition.slug,
-        name: edition.name,
-        text: response.data?.text || '',
-      };
-    }),
-  );
+    if (tafsirIds.length === 0) {
+      return fetchFallbackTurkishVerseTafsirs(surahId, verseNumber);
+    }
 
-  return results
-    .filter(result => result.status === 'fulfilled' && result.value.text)
-    .map(result => result.value);
+    const response = await axios.get(`${QURAN_FOUNDATION_CONTENT_PROXY_URL}/verses/by_key/${surahId}:${verseNumber}`, {
+      params: {
+        language: 'tr',
+        tafsirs: tafsirIds.join(','),
+        tafsir_fields: 'resource_id,text',
+      },
+    });
+
+    const resourceById = new Map(tafsirResources.map(item => [item.id, item]));
+
+    const quranFoundationTafsirs = (response.data?.verse?.tafsirs || [])
+      .map((item) => {
+        const resource = resourceById.get(item.resource_id);
+        const name = item.name || resource?.translated_name?.name || resource?.name || 'Tefsir';
+        const text = tafsirHtmlToText(item.text);
+
+        return {
+          slug: resource?.slug || `qf-tafsir-${item.resource_id || item.id}`,
+          name,
+          text,
+        };
+      })
+      .filter(item => item.text);
+
+    if (quranFoundationTafsirs.length === 0) {
+      return fetchFallbackTurkishVerseTafsirs(surahId, verseNumber);
+    }
+
+    return quranFoundationTafsirs;
+  } catch (error) {
+    console.warn(`Quran Foundation Turkish tafsir lookup failed, using Turkish fallback source: ${error?.message || 'unknown error'}`);
+    return fetchFallbackTurkishVerseTafsirs(surahId, verseNumber);
+  }
 };

@@ -33,7 +33,7 @@ const uniqueByText = (items, field) => {
   });
 };
 
-const DEFAULT_AUDIO_IDENTIFIER = 'alquran:ar.alafasy';
+const DEFAULT_AUDIO_IDENTIFIER = 'quranfoundation:7';
 
 const AUDIO_SOURCE_ORDER = {
   'Ayet Bazlı': 0,
@@ -159,6 +159,17 @@ const BarComponent = () => {
   const [audio, setAudio] = useState(DEFAULT_AUDIO_IDENTIFIER);
   const [gorunum, setGorunum] = useState(false);
   const [controlsHeight, setControlsHeight] = useState(0);
+  const [mealDrawerOpenSignal, setMealDrawerOpenSignal] = useState(0);
+  const [authorSelectOpen, setAuthorSelectOpen] = useState(false);
+
+  const closeAuthorSelect = () => {
+    setAuthorSelectOpen(false);
+    window.setTimeout(() => {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    }, 0);
+  };
 
 useEffect(() => {
     if (!controlsRef.current) return undefined;
@@ -226,11 +237,15 @@ useEffect(() => {
      
   }, []);
 
-const getVerseList =function (surahId,authorId){
-   fetchVerseList(surahId,authorId)
+const getVerseList =function (surahId,authorId, options = {}){
+   return fetchVerseList(surahId,authorId)
       .then(data => {
         setDataVerse(data);
         setLoading(false);
+        if (options.openMealDrawer) {
+          setMealDrawerOpenSignal((value) => value + 1);
+        }
+        return data;
       })
       .catch(err => {
         toast.error(err?.message || 'Ayetler yüklenirken bir hata oluştu.');
@@ -260,8 +275,13 @@ const getVerseList =function (surahId,authorId){
 
    const handleChangeAuthor = (newValue) => {
     const selectedAuthor = newValue?.id || 0;
+    closeAuthorSelect();
     setAuthor(selectedAuthor);
-       getVerseList(surah,selectedAuthor);
+    if (surah === 0 || selectedAuthor === 0) {
+      return;
+    }
+
+       getVerseList(surah,selectedAuthor, { openMealDrawer: true }).catch(() => {});
   };
 
      const handleChangeAudio = (newValue) => {
@@ -398,6 +418,10 @@ const getVerseList =function (surahId,authorId){
                   size="small"
                   autoHighlight
                   openOnFocus
+                  blurOnSelect
+                  open={authorSelectOpen}
+                  onOpen={() => setAuthorSelectOpen(true)}
+                  onClose={closeAuthorSelect}
                   slotProps={compactAutocompleteSlotProps}
                   disabled={surah === 0}
                   options={dataAuthor}
@@ -599,6 +623,7 @@ const getVerseList =function (surahId,authorId){
             dataVerse={dataVerse}
             dataSurah={dataSurah}
             dataAuthor={dataAuthor}
+            mealDrawerOpenSignal={mealDrawerOpenSignal}
             onAuthorChange={handleChangeAuthor}
             onSurahNavigate={handleChangeSurah}
           />

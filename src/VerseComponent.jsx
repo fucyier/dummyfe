@@ -4,7 +4,7 @@ import Paper from '@mui/material/Paper';
 import { styled } from '@mui/material/styles';
 import Divider from '@mui/material/Divider';
 import { AudioPlayer } from 'react-audio-play';
-import { AppBar, Autocomplete, Button, CircularProgress, Dialog, DialogContent, DialogTitle, Fab, FormControl, FormControlLabel, IconButton, InputLabel, MenuItem, Select, Slider, Switch, TextField } from '@mui/material';
+import { AppBar, Autocomplete, Button, CircularProgress, Dialog, DialogContent, DialogTitle, Fab, FormControl, FormControlLabel, IconButton, InputLabel, MenuItem, Popper, Select, Slider, Switch, TextField } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -19,9 +19,9 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AutoStoriesIcon from '@mui/icons-material/AutoStories';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
-import { fetchQuranFoundationAyahAudioUrl, fetchVerseTafsirs, fetchVerseTranslationsByAuthors } from './api';
+import { fetchQuranFoundationAyahAudioUrl, fetchVerseTafsirs, fetchVerseTranslationsByAuthors, normalizeQuranFoundationAudioUrl } from './api';
 
 const ArabicVerse = styled(Paper)(({ theme }) => ({
   backgroundColor: '#fff8d9',
@@ -73,12 +73,14 @@ const VerseEndMark = styled('span')({
   },
 });
 
+const QURAN_ANNOTATION_MARKS_REGEX = /[\u0610-\u061a\u06d6-\u06ed\u25cc]/g;
+
 const formatArabicVerse = (text) => (
   text
     ?.replaceAll('\u06ea', '\u0650')
     .replaceAll('\u0656', '\u0650')
     .replace(/\u06d4[\u064b-\u0652]?/g, '')
-    .replace(/[\u06d6-\u06ed]/g, '') || ''
+    .replace(QURAN_ANNOTATION_MARKS_REGEX, '') || ''
 );
 
 const toArabicNumber = (value) => (
@@ -168,23 +170,26 @@ const getControlsOffset = () => {
   return (Number.isFinite(controlsHeight) ? controlsHeight : 0) + 16;
 };
 
-const scrollVerseToTop = (verseId) => {
-  const verseElement = document.getElementById(`verse-${verseId}`);
+const scrollVerseToTop = (verseId, options = {}) => {
+  const verseElement = document.getElementById(
+    options.includeActions ? `verse-actions-${verseId}` : `verse-${verseId}`,
+  ) || document.getElementById(`verse-${verseId}`);
+
   if (!verseElement) return;
 
   const top = Math.max(0, verseElement.getBoundingClientRect().top + getScrollTop() - getControlsOffset());
-  const options = { top, behavior: 'smooth' };
+  const scrollOptions = { top, behavior: 'smooth' };
 
-  document.scrollingElement?.scrollTo(options);
-  document.documentElement.scrollTo(options);
-  document.body.scrollTo(options);
-  window.scrollTo(options);
+  document.scrollingElement?.scrollTo(scrollOptions);
+  document.documentElement.scrollTo(scrollOptions);
+  document.body.scrollTo(scrollOptions);
+  window.scrollTo(scrollOptions);
 };
 
-const scheduleVerseScrollToTop = (verseId) => {
+const scheduleVerseScrollToTop = (verseId, options = {}) => {
   [120, 360, 700].forEach((delay) => {
     window.setTimeout(() => {
-      window.requestAnimationFrame(() => scrollVerseToTop(verseId));
+      window.requestAnimationFrame(() => scrollVerseToTop(verseId, options));
     }, delay);
   });
 };
@@ -258,6 +263,16 @@ const VerseComponent = ({
   const [verseTafsirDialogVerse, setVerseTafsirDialogVerse] = useState(null);
   const [verseTafsirDialogLoading, setVerseTafsirDialogLoading] = useState(false);
   const [verseTafsirs, setVerseTafsirs] = useState([]);
+  const [arabicVerseLoopIds, setArabicVerseLoopIds] = useState({});
+  const [arabicPanelPlaybackVerseId, setArabicPanelPlaybackVerseId] = useState(null);
+  const [arabicPanelLoadingVerseId, setArabicPanelLoadingVerseId] = useState(null);
+  const [selectedWordPopover, setSelectedWordPopover] = useState({
+    anchorEl: null,
+    word: null,
+  });
+  const lastMealDrawerOpenSignalRef = useRef(mealDrawerOpenSignal);
+  const wordAudioRef = useRef(null);
+  const wordAudioPlayTokenRef = useRef(0);
   const verseCount = dataVerse?.verse_count || dataVerse?.verses?.length || 0;
   const selectedAudio = normalizeAudioOption(audio);
   const isMp3QuranAudio = selectedAudio?.source === 'mp3quran';
@@ -272,10 +287,30 @@ const VerseComponent = ({
   }, [playbackSpeed, audioDrawerOpen, mealOpen, secilenSound, dataVerse?.audio?.mp3, audioPlayerSrc]);
 
   useEffect(() => {
-    if (mealDrawerOpenSignal > 0) {
+    if (mealDrawerOpenSignal > lastMealDrawerOpenSignalRef.current) {
       setMealOpen(true);
     }
+    lastMealDrawerOpenSignalRef.current = mealDrawerOpenSignal;
   }, [mealDrawerOpenSignal]);
+
+  useEffect(() => {
+    if (!selectedWordPopover.anchorEl) return undefined;
+
+    const handleDocumentPointerDown = (event) => {
+      const target = event.target;
+      if (target instanceof Node && selectedWordPopover.anchorEl?.contains(target)) {
+        return;
+      }
+
+      handleWordPopoverClose();
+    };
+
+    document.addEventListener('pointerdown', handleDocumentPointerDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handleDocumentPointerDown);
+    };
+  }, [selectedWordPopover.anchorEl]);
 
   const renderPlaybackSpeedControl = (labelId) => (
     <FormControl size="small" sx={{ flex: '0 0 96px', minWidth: 96 }}>
@@ -415,6 +450,8 @@ const VerseComponent = ({
       scheduleVerseScrollToTop(firstVerseId);
     } catch (error) {
       console.error(error);
+      setArabicPanelLoadingVerseId(null);
+      setArabicPanelPlaybackVerseId(null);
       toast.error('Ayet sesi yüklenirken bir hata oluştu.');
     }
   };
@@ -904,10 +941,32 @@ const VerseComponent = ({
               return;
             }
 
+            if (arabicPanelPlaybackVerseId && arabicVerseLoopIds[arabicPanelPlaybackVerseId]) {
+              try {
+                const replaySound = await loadSelectedAyahAudio(arabicPanelPlaybackVerseId);
+                setAudioDrawerOpen(true);
+                setSecilenSound(replaySound);
+                setActiveVerseId(arabicPanelPlaybackVerseId);
+                setAudioReplayKey((prevKey) => prevKey + 1);
+              } catch (error) {
+                console.error(error);
+                toast.error('Ayet sesi yüklenirken bir hata oluştu.');
+                setAudioDrawerOpen(false);
+                setSecilenSound(null);
+                setActiveVerseId(null);
+                setArabicPanelPlaybackVerseId(null);
+                setArabicPanelLoadingVerseId(null);
+                resetLessonSettings();
+              }
+              return;
+            }
+
             if (!lessonMode) {
               setAudioDrawerOpen(false);
               setSecilenSound(null);
               setActiveVerseId(null);
+              setArabicPanelPlaybackVerseId(null);
+              setArabicPanelLoadingVerseId(null);
               resetLessonSettings();
               return;
             }
@@ -1020,11 +1079,58 @@ const VerseComponent = ({
 
     setAudioDrawerOpen(true);
     setLessonMode(true);
+    setArabicPanelPlaybackVerseId(null);
     setSecilenSound(nextSound);
     setActiveVerseId(String(verseId));
     setCurrentVerseRepeat(1);
     setAudioReplayKey((prevKey) => prevKey + 1);
     scheduleVerseScrollToTop(verseId);
+  };
+
+  const handleArabicVerseLoopChange = (verseId, checked) => {
+    const verseKey = String(verseId);
+
+    setArabicVerseLoopIds((value) => ({
+      ...value,
+      [verseKey]: checked,
+    }));
+  };
+
+  const handleArabicVersePanelPlay = async (verseId) => {
+    if (!selectedAudio) {
+      toast.error('Lütfen Seslendiren Seçiniz');
+      return;
+    }
+
+    if (isMp3QuranAudio) {
+      handleVerseAudioClick(verseId);
+      return;
+    }
+
+    const verseKey = String(verseId);
+    resetLessonSettings();
+    setSecilenSound(null);
+    setActiveVerseId(null);
+    setArabicPanelPlaybackVerseId(null);
+    setArabicPanelLoadingVerseId(verseKey);
+    try {
+      const nextSound = await loadSelectedAyahAudio(verseId);
+
+      setAudioDrawerOpen(true);
+      setLessonMode(false);
+      setArabicPanelPlaybackVerseId(verseKey);
+      setArabicPanelLoadingVerseId(null);
+      setSecilenSound(nextSound);
+      setActiveVerseId(verseKey);
+      setCurrentVerseRepeat(1);
+      setAudioReplayKey((prevKey) => prevKey + 1);
+      scheduleVerseScrollToTop(verseId, { includeActions: true });
+    } catch (error) {
+      console.error(error);
+      setArabicPanelLoadingVerseId(null);
+      setArabicPanelPlaybackVerseId(null);
+      toast.error('Ayet sesi yüklenirken bir hata oluştu.');
+    }
   };
 
   const handleVerseAudioClick = async (verseId) => {
@@ -1063,7 +1169,132 @@ const VerseComponent = ({
     setAudioDrawerOpen(false);
     setSecilenSound(null);
     setActiveVerseId(null);
+    setArabicPanelPlaybackVerseId(null);
+    setArabicPanelLoadingVerseId(null);
     resetLessonSettings();
+  };
+
+  const stopActiveWordAudio = () => {
+    if (wordAudioRef.current) {
+      wordAudioRef.current.pause();
+      wordAudioRef.current.currentTime = 0;
+      wordAudioRef.current = null;
+    }
+    window.speechSynthesis?.cancel();
+  };
+
+  const playWordSpeechFallback = (word, token) => {
+    if (!window.speechSynthesis) {
+      toast.error('Kelime sesi bulunamadı.');
+      return;
+    }
+
+    const text = formatArabicVerse(word.text).trim();
+    if (!text) return;
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voices = window.speechSynthesis.getVoices();
+    utterance.lang = 'ar-SA';
+    utterance.rate = 0.8;
+    utterance.voice = voices.find(voice => /^ar\b/i.test(voice.lang)) || null;
+
+    if (wordAudioPlayTokenRef.current === token) {
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const handleWordClick = (event, word) => {
+    event.stopPropagation();
+    if (event.currentTarget instanceof HTMLElement) {
+      event.currentTarget.blur();
+    }
+    const nextToken = wordAudioPlayTokenRef.current + 1;
+    wordAudioPlayTokenRef.current = nextToken;
+    stopActiveWordAudio();
+
+    setSelectedWordPopover({
+      anchorEl: event.currentTarget,
+      word,
+    });
+
+    const audioUrl = normalizeQuranFoundationAudioUrl(word.audioUrl);
+    if (!audioUrl) {
+      playWordSpeechFallback(word, nextToken);
+      return;
+    }
+
+    const wordAudio = new Audio(audioUrl);
+    wordAudioRef.current = wordAudio;
+    wordAudio.addEventListener('ended', () => {
+      if (wordAudioPlayTokenRef.current === nextToken) {
+        wordAudioRef.current = null;
+      }
+    }, { once: true });
+    wordAudio.addEventListener('error', () => {
+      if (wordAudioPlayTokenRef.current !== nextToken) return;
+      wordAudioRef.current = null;
+      playWordSpeechFallback(word, nextToken);
+    }, { once: true });
+    wordAudio.play().catch((error) => {
+      if (wordAudioPlayTokenRef.current !== nextToken) return;
+      console.debug(`Kelime ses dosyası çalınamadı, TTS fallback kullanılıyor: ${error?.message || 'unknown error'}`);
+      playWordSpeechFallback(word, nextToken);
+    });
+  };
+
+  const handleWordPopoverClose = () => {
+    setSelectedWordPopover({
+      anchorEl: null,
+      word: null,
+    });
+  };
+
+  const renderArabicVerseWords = (verseItem) => {
+    const words = verseItem.quranFoundationWords || [];
+
+    if (words.length === 0) {
+      return formatArabicVerse(verseItem.verse);
+    }
+
+    return words.map((word) => (
+          <Box
+            key={`${verseItem.id}-${word.position}`}
+            component="span"
+            role="button"
+            tabIndex={0}
+            onClick={(event) => handleWordClick(event, word)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                handleWordClick(event, word);
+              }
+            }}
+            sx={{
+              display: 'inline-flex',
+              m: 0,
+              p: 0,
+              border: 0,
+              background: 'transparent',
+              color: 'inherit',
+              font: 'inherit',
+              lineHeight: 'inherit',
+              direction: 'rtl',
+              unicodeBidi: 'isolate',
+              alignItems: 'baseline',
+              cursor: 'pointer',
+              '&:hover': {
+                color: '#b3261e',
+              },
+              '&:focus-visible': {
+                outline: 'none',
+                backgroundColor: 'rgba(215, 183, 101, 0.18)',
+                borderRadius: 0.5,
+              },
+            }}
+          >
+            {formatArabicVerse(word.text)}
+          </Box>
+    ));
   };
 
   const handleMealShortcutClick = (verseItem) => {
@@ -1283,8 +1514,13 @@ const VerseComponent = ({
           )}
 
           {dataVerse?.verses?.map(item => {
+            const itemVerseKey = String(item.id);
             const isSurahAudioButton = isMp3QuranAudio && item.verse_number === 1;
             const isDisabledSurahAudioButton = isMp3QuranAudio && item.verse_number !== 1;
+            const isArabicPanelButtonBusy = (
+              arabicPanelLoadingVerseId === itemVerseKey
+              || arabicPanelPlaybackVerseId === itemVerseKey
+            );
 
             return (
             <Fragment key={item.id}>
@@ -1323,6 +1559,7 @@ const VerseComponent = ({
               )}
               {!gorunum && (
                 <Box
+                  id={`verse-actions-${item.id}`}
                   sx={{
                     display: 'flex',
                     justifyContent: 'flex-start',
@@ -1330,9 +1567,63 @@ const VerseComponent = ({
                     gap: 0.25,
                     mt: -1.8,
                     mb: -0.2,
-                    pl: { xs: 0.5, sm: 2 },
+                    pl: 0,
                   }}
                 >
+                  <IconButton
+                    aria-label={`${item.verse_number}. ayeti oynat`}
+                    size="small"
+                    onClick={() => handleArabicVersePanelPlay(item.id)}
+                    disabled={isDisabledSurahAudioButton || isArabicPanelButtonBusy}
+                    sx={{
+                      color: '#8b8f8a',
+                      p: 0.15,
+                      '&:hover': {
+                        color: '#6f7745',
+                        backgroundColor: 'rgba(111, 119, 69, 0.08)',
+                      },
+                      '&.Mui-disabled': {
+                        color: 'rgba(139, 143, 138, 0.42)',
+                      },
+                    }}
+                  >
+                    {isArabicPanelButtonBusy ? (
+                      <CircularProgress size={20} thickness={5} sx={{ color: '#6f7745' }} />
+                    ) : (
+                      <PlayArrowIcon sx={{ fontSize: { xs: 26, sm: 28 } }} />
+                    )}
+                  </IconButton>
+                  <FormControlLabel
+                    label="Tekrar"
+                    labelPlacement="end"
+                    control={(
+                      <Switch
+                        size="small"
+                        checked={Boolean(arabicVerseLoopIds[itemVerseKey])}
+                        onChange={(event) => handleArabicVerseLoopChange(item.id, event.target.checked)}
+                        disabled={isDisabledSurahAudioButton}
+                        sx={{
+                          '& .MuiSwitch-switchBase.Mui-checked': {
+                            color: '#6f7745',
+                          },
+                          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                            backgroundColor: '#6f7745',
+                          },
+                        }}
+                      />
+                    )}
+                    sx={{
+                      m: 0,
+                      color: '#8b8f8a',
+                      '& .MuiFormControlLabel-label': {
+                        fontSize: { xs: '0.78rem', sm: '0.9rem' },
+                        fontWeight: 800,
+                        lineHeight: 1,
+                        whiteSpace: 'nowrap',
+                      },
+                    }}
+                  />
+                  <Divider orientation="vertical" flexItem sx={{ my: 0.15, borderColor: 'rgba(139, 143, 138, 0.24)' }} />
                   <Button
                     variant="text"
                     size="small"
@@ -1340,7 +1631,7 @@ const VerseComponent = ({
                     onClick={() => handleMealShortcutClick(item)}
                     sx={{
                       minHeight: 22,
-                      px: 0.35,
+                      px: 0.15,
                       py: 0,
                       color: '#8b8f8a',
                       fontWeight: 700,
@@ -1367,7 +1658,7 @@ const VerseComponent = ({
                     onClick={() => handleTafsirShortcutClick(item)}
                     sx={{
                       minHeight: 22,
-                      px: 0.35,
+                      px: 0.15,
                       py: 0,
                       color: '#8b8f8a',
                       fontWeight: 700,
@@ -1393,6 +1684,7 @@ const VerseComponent = ({
                   id={`verse-${item.id}`}
                   value={item.id}
                   sx={{
+                    position: 'relative',
                     transition: 'background-color 180ms ease, box-shadow 180ms ease, outline-color 180ms ease',
                     ...(isActiveVerse(item.id) && {
                       backgroundColor: '#ffeaa3',
@@ -1401,8 +1693,22 @@ const VerseComponent = ({
                     }),
                   }}
                 >
-                  {formatArabicVerse(item.verse)}
-                  <VerseEndMark>{toArabicNumber(item.verse_number)}</VerseEndMark>
+                  <Box
+                    component="span"
+                    sx={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      direction: 'rtl',
+                      unicodeBidi: 'isolate',
+                      justifyContent: 'flex-start',
+                      alignItems: 'baseline',
+                      columnGap: '0.22em',
+                      rowGap: '0.08em',
+                    }}
+                  >
+                    {renderArabicVerseWords(item)}
+                    <VerseEndMark>{toArabicNumber(item.verse_number)}</VerseEndMark>
+                  </Box>
                 </ArabicVerse>
               )}
               <div
@@ -1475,6 +1781,60 @@ const VerseComponent = ({
           </Drawer>
         </Stack>
       </div>
+
+      <Popper
+        open={Boolean(selectedWordPopover.anchorEl)}
+        anchorEl={selectedWordPopover.anchorEl}
+        placement="top"
+        modifiers={[
+          {
+            name: 'offset',
+            options: {
+              offset: [0, 8],
+            },
+          },
+        ]}
+        sx={{
+          zIndex: 1800,
+          pointerEvents: 'none',
+        }}
+      >
+        <Box
+          sx={{
+            maxWidth: 260,
+            p: 1.5,
+            borderRadius: 1,
+            backgroundColor: '#fffdf4',
+            color: '#211b14',
+            boxShadow: '0 8px 22px rgba(47, 56, 35, 0.22)',
+          }}
+        >
+        <Box sx={{ display: 'grid', gap: 0.6, textAlign: 'left' }}>
+          <Typography
+            sx={{
+              direction: 'rtl',
+              textAlign: 'right',
+              color: '#6f5a22',
+              fontFamily: 'var(--font-mushaf), Traditional Arabic, serif',
+              fontSize: '1.7rem',
+              lineHeight: 1.4,
+            }}
+          >
+            {formatArabicVerse(selectedWordPopover.word?.text).trim()}
+          </Typography>
+          {selectedWordPopover.word?.translation && (
+            <Typography sx={{ fontWeight: 800, color: '#6f7745' }}>
+              {selectedWordPopover.word.translation}
+            </Typography>
+          )}
+          {selectedWordPopover.word?.transliteration && (
+            <Typography variant="body2" sx={{ color: '#6f5a22' }}>
+              {selectedWordPopover.word.transliteration}
+            </Typography>
+          )}
+        </Box>
+        </Box>
+      </Popper>
 
       {verseCount > 0 && (
         <>

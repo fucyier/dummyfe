@@ -245,13 +245,83 @@ const fetchFallbackTurkishVerseTafsirs = async (surahId, verseNumber) => {
     .map(result => result.value);
 };
 
-const normalizeQuranFoundationAudioUrl = (url) => {
+export const normalizeQuranFoundationAudioUrl = (url) => {
   if (!url) return '';
   if (/^https?:\/\//i.test(url)) return url;
   const normalizedUrl = String(url).replace(/^\/+/, '');
   if (/^[\w.-]+\.[a-z]{2,}\//i.test(normalizedUrl)) return `https://${normalizedUrl}`;
 
   return `${QURAN_FOUNDATION_VERSES_AUDIO_BASE_URL}/${normalizedUrl}`;
+};
+
+const getQuranFoundationChapterWordsPage = async (surahId, page) => {
+  const endpointPath = `/verses/by_chapter/${surahId}`;
+  const requestConfig = {
+    params: {
+      language: 'tr',
+      words: 'true',
+      word_fields: 'text_uthmani,text_imlaei,audio_url,translation,transliteration,char_type_name',
+      fields: 'verse_key',
+      per_page: 50,
+      page,
+    },
+  };
+
+  try {
+    const response = await axios.get(`${QURAN_FOUNDATION_CONTENT_PROXY_URL}${endpointPath}`, requestConfig);
+    if (!Array.isArray(response.data?.verses)) {
+      throw new Error('Quran Foundation proxy returned no words.');
+    }
+
+    return response.data;
+  } catch (error) {
+    console.debug(`Quran Foundation word lookup failed, using Quran.com public fallback: ${error?.message || 'unknown error'}`);
+    const response = await axios.get(`${QURAN_COM_API_V4_URL}${endpointPath}`, requestConfig);
+    return response.data;
+  }
+};
+
+const padQuranAudioPart = (value) => String(value).padStart(3, '0');
+
+const getWordByWordAudioUrl = (surahId, verseNumber, wordIndex) => (
+  normalizeQuranFoundationAudioUrl(
+    `wbw/${padQuranAudioPart(surahId)}_${padQuranAudioPart(verseNumber)}_${padQuranAudioPart(wordIndex + 1)}.mp3`,
+  )
+);
+
+const normalizeQuranFoundationWord = (word, surahId, verseNumber, wordIndex) => ({
+  id: word.id,
+  position: word.position,
+  text: word.text_imlaei || word.text_uthmani || '',
+  audioUrl: getWordByWordAudioUrl(surahId, verseNumber, wordIndex),
+  translation: word.translation?.text || '',
+  transliteration: word.transliteration?.text || '',
+});
+
+const fetchQuranFoundationChapterWords = async (surahId) => {
+  if (!surahId) return new Map();
+
+  const firstPage = await getQuranFoundationChapterWordsPage(surahId, 1);
+  const totalPages = firstPage.pagination?.total_pages || 1;
+  const pages = [firstPage];
+
+  for (let page = 2; page <= totalPages; page += 1) {
+    pages.push(await getQuranFoundationChapterWordsPage(surahId, page));
+  }
+
+  const verseWordsByNumber = new Map();
+
+  pages.flatMap(page => page.verses || []).forEach((verse) => {
+    const words = (verse.words || [])
+      .filter(word => (!word.char_type_name || word.char_type_name === 'word') && (word.text_uthmani || word.text_imlaei))
+      .map((word, index) => normalizeQuranFoundationWord(word, surahId, verse.verse_number, index));
+
+    if (words.length > 0) {
+      verseWordsByNumber.set(verse.verse_number, words);
+    }
+  });
+
+  return verseWordsByNumber;
 };
 
 const getQuranFoundationAudioUrlFromResponse = (response) => (
@@ -404,7 +474,22 @@ export const fetchVerseList = async (surahId, authorId) => {
     else{
         throw new Error('Sure ve meal Seçiniz...');
     }
-    return response.data.data;
+    const verseData = response.data.data;
+
+    try {
+      const wordsByVerseNumber = await fetchQuranFoundationChapterWords(surahId);
+
+      return {
+        ...verseData,
+        verses: (verseData.verses || []).map((verse) => ({
+          ...verse,
+          quranFoundationWords: wordsByVerseNumber.get(verse.verse_number) || [],
+        })),
+      };
+    } catch (wordError) {
+      console.warn(`Kelime bazlı anlamlar yüklenemedi: ${wordError?.message || 'unknown error'}`);
+      return verseData;
+    }
   } catch (error) {
     console.error('Error fetching data: ', error);
     // Handle errors here or throw them to be handled where the function is called

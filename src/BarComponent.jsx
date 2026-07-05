@@ -35,6 +35,26 @@ const uniqueByText = (items, field) => {
 
 const DEFAULT_AUDIO_IDENTIFIER = 'quranfoundation:7';
 
+const LoadingState = () => (
+  <Box
+    sx={{
+      minHeight: '45vh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 1.5,
+      color: '#6f5a22',
+      fontWeight: 800,
+    }}
+  >
+    <CircularProgress sx={{ color: '#6f7745' }} />
+    <Typography sx={{ fontWeight: 800 }}>
+      Lütfen Bekleyiniz...
+    </Typography>
+  </Box>
+);
+
 const AUDIO_SOURCE_ORDER = {
   'Ayet Bazlı': 0,
   'Sure Bazlı': 1,
@@ -142,9 +162,18 @@ const updateSurahPath = (surahItem) => {
   }
 };
 
+const scrollPageToTop = () => {
+  const options = { top: 0, behavior: 'auto' };
+  document.scrollingElement?.scrollTo(options);
+  document.documentElement.scrollTo(options);
+  document.body.scrollTo(options);
+  window.scrollTo(options);
+};
+
 const BarComponent = () => {
   const controlsRef = useRef(null);
   const [loading, setLoading] = useState(true);
+  const [verseLoading, setVerseLoading] = useState(false);
   const [dataSurah, setDataSurah] = useState([])
   const [dataAuthor, setDataAuthor] = useState([])
    const [dataAudio, setDataAudio] = useState([])
@@ -238,10 +267,12 @@ useEffect(() => {
   }, []);
 
 const getVerseList =function (surahId,authorId, options = {}){
+   setVerseLoading(true);
    return fetchVerseList(surahId,authorId)
       .then(data => {
         setDataVerse(data);
         setLoading(false);
+        setVerseLoading(false);
         if (options.openMealDrawer) {
           setMealDrawerOpenSignal((value) => value + 1);
         }
@@ -250,6 +281,7 @@ const getVerseList =function (surahId,authorId, options = {}){
       .catch(err => {
         toast.error(err?.message || 'Ayetler yüklenirken bir hata oluştu.');
       //  setLoading(true);
+        setVerseLoading(false);
       });
 }
 
@@ -261,12 +293,14 @@ const getVerseList =function (surahId,authorId, options = {}){
 
     const handleChangeSurah = (newValue) => {
     const selectedSurah = newValue?.id || 0;
+    scrollPageToTop();
     setSurah(selectedSurah);
     if (selectedSurah === 0) {
       updateSurahPath(null);
       setAuthor(0);
       setAudio(DEFAULT_AUDIO_IDENTIFIER);
       setDataVerse([]);
+      setVerseLoading(false);
       return;
     }
        updateSurahPath(newValue);
@@ -326,7 +360,7 @@ const getVerseList =function (surahId,authorId, options = {}){
  return (
         <>  
 
-        {loading && <div>Lütfen Bekleyiniz...</div>}
+        {loading && <LoadingState />}
         {!loading && (
        
             <Box
@@ -527,7 +561,8 @@ const getVerseList =function (surahId,authorId, options = {}){
         )}
 
         {!loading && <Box sx={{ height: controlsHeight + 2 }} />}
-        {!loading && surah === 0 && (
+        {!loading && verseLoading && <LoadingState />}
+        {!loading && !verseLoading && surah === 0 && (
           <>
           <Paper
             elevation={2}
@@ -613,7 +648,7 @@ const getVerseList =function (surahId,authorId, options = {}){
             </Typography>
           </>
         )}
-        {surah !== 0 && (
+        {!loading && !verseLoading && surah !== 0 && (
           <VerseComponent
             key={surah}
             surah={surah}

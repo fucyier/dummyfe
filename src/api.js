@@ -260,8 +260,8 @@ const getQuranFoundationChapterWordsPage = async (surahId, page) => {
     params: {
       language: 'tr',
       words: 'true',
-      word_fields: 'text_uthmani,text_imlaei,audio_url,translation,transliteration,char_type_name',
-      fields: 'verse_key',
+      word_fields: 'text_uthmani,text_imlaei,audio_url,translation,transliteration,char_type_name,line_number,page_number,v1_page,v2_page',
+      fields: 'verse_key,page_number',
       per_page: 50,
       page,
     },
@@ -293,9 +293,12 @@ const normalizeQuranFoundationWord = (word, surahId, verseNumber, wordIndex) => 
   id: word.id,
   position: word.position,
   text: word.text_imlaei || word.text_uthmani || '',
+  uthmaniText: word.text_uthmani || word.text_imlaei || '',
   audioUrl: getWordByWordAudioUrl(surahId, verseNumber, wordIndex),
   translation: word.translation?.text || '',
   transliteration: word.transliteration?.text || '',
+  lineNumber: word.line_number,
+  pageNumber: word.v2_page || word.page_number || word.v1_page,
 });
 
 const fetchQuranFoundationChapterWords = async (surahId) => {

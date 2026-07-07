@@ -234,6 +234,8 @@ const VerseComponent = ({
   author,
   audio,
   gorunum,
+  readingMode = false,
+  readingView = 'arabic',
   dataVerse,
   dataSurah = [],
   dataAuthor = [],
@@ -1343,6 +1345,188 @@ const VerseComponent = ({
     setVerseTafsirDialogOpen(false);
   };
 
+  const getReadingPages = () => {
+    const pageMap = new Map();
+
+    (dataVerse?.verses || []).forEach((verseItem) => {
+      const words = verseItem.quranFoundationWords || [];
+
+      if (words.length === 0) {
+        const pageNumber = verseItem.page_number || 0;
+        const lineNumber = verseItem.verse_number;
+        if (!pageMap.has(pageNumber)) pageMap.set(pageNumber, new Map());
+        const lineMap = pageMap.get(pageNumber);
+        if (!lineMap.has(lineNumber)) lineMap.set(lineNumber, []);
+        lineMap.get(lineNumber).push({
+          type: 'fallbackVerse',
+          id: `${verseItem.id}-fallback`,
+          text: formatArabicVerse(verseItem.verse),
+          verseNumber: verseItem.verse_number,
+        });
+        return;
+      }
+
+      words.forEach((word, index) => {
+        const pageNumber = word.pageNumber || verseItem.page_number || 0;
+        const lineNumber = word.lineNumber || verseItem.verse_number;
+        if (!pageMap.has(pageNumber)) pageMap.set(pageNumber, new Map());
+        const lineMap = pageMap.get(pageNumber);
+        if (!lineMap.has(lineNumber)) lineMap.set(lineNumber, []);
+        lineMap.get(lineNumber).push({
+          type: 'word',
+          id: `${verseItem.id}-${word.position || index}`,
+          text: formatArabicVerse(word.uthmaniText || word.text),
+          verseNumber: verseItem.verse_number,
+          isVerseEnd: index === words.length - 1,
+        });
+      });
+    });
+
+    return [...pageMap.entries()]
+      .sort(([pageA], [pageB]) => pageA - pageB)
+      .map(([pageNumber, lineMap]) => ({
+        pageNumber,
+        lines: [...lineMap.entries()]
+          .sort(([lineA], [lineB]) => lineA - lineB)
+          .map(([lineNumber, tokens]) => ({ lineNumber, tokens })),
+      }));
+  };
+
+  const renderReadingArabicPages = () => {
+    const pages = getReadingPages();
+
+    return (
+      <Box sx={{ display: 'grid', gap: 2.5, pb: dataVerse.audio !== undefined ? 7 : 0 }}>
+        {zeroVerseText && (
+          <Box sx={{ textAlign: 'center', color: '#211b14' }}>
+            <Typography
+              sx={{
+                fontFamily: 'var(--font-mushaf), Traditional Arabic, serif',
+                fontSize: { xs: '2rem', sm: '2.8rem' },
+                lineHeight: 1.5,
+              }}
+            >
+              {zeroVerseText}
+            </Typography>
+            {dataVerse.zero?.transcription && (
+              <Typography sx={{ color: '#4f4a33', fontWeight: 600 }}>
+                {dataVerse.zero.transcription}
+              </Typography>
+            )}
+          </Box>
+        )}
+
+        {pages.map((page) => (
+          <Paper
+            key={page.pageNumber}
+            elevation={0}
+            sx={{
+              maxWidth: 1120,
+              mx: 'auto',
+              width: '100%',
+              p: { xs: 2, sm: 3 },
+              borderRadius: 1,
+              backgroundColor: 'rgba(255, 253, 244, 0.92)',
+              border: '1px solid rgba(142, 118, 63, 0.18)',
+              boxShadow: '0 8px 24px rgba(47, 56, 35, 0.08)',
+            }}
+          >
+            {page.pageNumber > 0 && (
+              <Typography
+                variant="caption"
+                sx={{
+                  display: 'block',
+                  mb: 1.25,
+                  textAlign: 'center',
+                  color: '#8e763f',
+                  fontWeight: 800,
+                }}
+              >
+                Sayfa {page.pageNumber}
+              </Typography>
+            )}
+            <Box
+              sx={{
+                display: 'grid',
+                gap: { xs: 0.4, sm: 0.65 },
+                direction: 'rtl',
+                unicodeBidi: 'isolate',
+                fontFamily: 'var(--font-mushaf), Traditional Arabic, serif',
+                color: '#111',
+                fontSize: { xs: '2rem', sm: '2.75rem', md: '3.05rem' },
+                lineHeight: 1.85,
+              }}
+            >
+              {page.lines.map((line) => (
+                <Box
+                  key={`${page.pageNumber}-${line.lineNumber}`}
+                  sx={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    justifyContent: 'center',
+                    alignItems: 'baseline',
+                    columnGap: '0.22em',
+                    rowGap: '0.06em',
+                    direction: 'rtl',
+                    unicodeBidi: 'isolate',
+                  }}
+                >
+                  {line.tokens.map((token) => (
+                    <Fragment key={token.id}>
+                      <Box component="span" sx={{ display: 'inline-flex', direction: 'rtl', unicodeBidi: 'isolate' }}>
+                        {token.text}
+                      </Box>
+                      {token.isVerseEnd && <VerseEndMark>{toArabicNumber(token.verseNumber)}</VerseEndMark>}
+                      {token.type === 'fallbackVerse' && <VerseEndMark>{toArabicNumber(token.verseNumber)}</VerseEndMark>}
+                    </Fragment>
+                  ))}
+                </Box>
+              ))}
+            </Box>
+          </Paper>
+        ))}
+      </Box>
+    );
+  };
+
+  const renderReadingMeal = () => (
+    <Paper
+      elevation={0}
+      sx={{
+        maxWidth: 1120,
+        mx: 'auto',
+        width: '100%',
+        p: { xs: 1.5, sm: 2.5 },
+        borderRadius: 1,
+        backgroundColor: 'rgba(255, 253, 244, 0.92)',
+        border: '1px solid rgba(142, 118, 63, 0.18)',
+        boxShadow: '0 8px 24px rgba(47, 56, 35, 0.08)',
+        pb: dataVerse.audio !== undefined ? 7 : 2.5,
+        textAlign: 'left',
+      }}
+    >
+      {(dataVerse?.verses || []).map((item, index) => (
+        <Typography
+          key={item.id}
+          id={`verse-${item.id}`}
+          component="span"
+          sx={{
+            display: 'inline',
+            color: '#211b14',
+            fontWeight: 500,
+            fontSize: { xs: '1.15rem', sm: '1.42rem' },
+            lineHeight: 1.85,
+          }}
+        >
+          <Box component="span" sx={{ fontWeight: 900 }}>
+            {item.verse_number}.
+          </Box>
+          {` ${item.translation?.text || ''}${index < (dataVerse?.verses?.length || 0) - 1 ? ' ' : ''}`}
+        </Typography>
+      ))}
+    </Paper>
+  );
+
   const isActiveVerse = (verseId) => audioDrawerOpen && activeVerseId === String(verseId);
 
   return (
@@ -1486,6 +1670,9 @@ const VerseComponent = ({
           </Box>
         )}
         <br />
+        {readingMode ? (
+          readingView === 'meal' ? renderReadingMeal() : renderReadingArabicPages()
+        ) : (
         <Stack
           direction="column"
           spacing={gorunum ? 0.75 : 2}
@@ -1780,6 +1967,7 @@ const VerseComponent = ({
             {audioDrawerContent}
           </Drawer>
         </Stack>
+        )}
       </div>
 
       <Popper

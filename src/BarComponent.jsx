@@ -13,9 +13,10 @@ import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Autocomplete from '@mui/material/Autocomplete';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Switch from '@mui/material/Switch';
 import CloseIcon from '@mui/icons-material/Close';
+import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import TranslateIcon from '@mui/icons-material/Translate';
 import { toast } from 'react-toastify';
 import VerseComponent from './VerseComponent';
 
@@ -34,6 +35,105 @@ const uniqueByText = (items, field) => {
 };
 
 const DEFAULT_AUDIO_IDENTIFIER = 'quranfoundation:7';
+
+const viewTabButtonSx = (active) => ({
+  minHeight: { xs: 30, sm: 34 },
+  px: { xs: 0.9, sm: 1.25 },
+  py: 0.35,
+  borderRadius: 999,
+  color: active ? '#fff8d9' : '#62675a',
+  backgroundColor: active ? '#2f312d' : 'transparent',
+  boxShadow: active ? '0 2px 8px rgba(47, 49, 45, 0.18)' : 'none',
+  fontWeight: 800,
+  fontSize: { xs: '0.72rem', sm: '0.88rem' },
+  textTransform: 'none',
+  whiteSpace: 'nowrap',
+  '&:hover': {
+    backgroundColor: active ? '#2f312d' : 'rgba(255, 255, 255, 0.62)',
+  },
+  '&.Mui-disabled': {
+    color: 'rgba(79, 74, 51, 0.36)',
+  },
+  '& .MuiButton-startIcon': {
+    mr: 0.45,
+  },
+});
+
+const ViewTabs = ({
+  disabled,
+  viewMode,
+  onViewModeChange,
+  memorizationView,
+  onMemorizationViewChange,
+  readingView,
+  onReadingViewChange,
+}) => {
+  const visibleTabs = disabled
+    ? [
+        { value: 'memorization', label: 'Ezberleme', icon: <FormatListBulletedIcon fontSize="small" />, onClick: () => onViewModeChange('memorization') },
+        { value: 'reading', label: 'Okuma', icon: <MenuBookIcon fontSize="small" />, onClick: () => onViewModeChange('reading') },
+      ]
+    : viewMode === 'memorization'
+      ? [
+        { value: 'arabic', label: 'Arapça', icon: <MenuBookIcon fontSize="small" />, onClick: () => onMemorizationViewChange('arabic') },
+        { value: 'latin', label: 'Latince', icon: <TranslateIcon fontSize="small" />, onClick: () => onMemorizationViewChange('latin') },
+        { value: 'divider', type: 'divider' },
+        { value: 'reading', label: 'Okuma', icon: <MenuBookIcon fontSize="small" />, onClick: () => onViewModeChange('reading') },
+      ]
+      : [
+        { value: 'memorization', label: 'Ezberleme', icon: <FormatListBulletedIcon fontSize="small" />, onClick: () => onViewModeChange('memorization') },
+        { value: 'divider', type: 'divider' },
+        { value: 'arabic', label: 'Arapça', icon: <MenuBookIcon fontSize="small" />, onClick: () => onReadingViewChange('arabic') },
+        { value: 'meal', label: 'Meal', icon: <TranslateIcon fontSize="small" />, onClick: () => onReadingViewChange('meal') },
+      ];
+  const activeValue = disabled
+    ? ''
+    : viewMode === 'memorization'
+      ? memorizationView
+      : readingView;
+
+  return (
+    <Box sx={{ display: 'grid', justifyItems: 'center' }}>
+      <Box
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 0.25,
+          p: 0.25,
+          borderRadius: 999,
+          backgroundColor: 'rgba(238, 238, 238, 0.9)',
+          boxShadow: 'inset 0 0 0 1px rgba(79, 74, 51, 0.08)',
+        }}
+      >
+        {visibleTabs.map((item) => (
+          item.type === 'divider' ? (
+            <Divider
+              key={item.value}
+              orientation="vertical"
+              flexItem
+              sx={{
+                mx: 0.3,
+                my: 0.45,
+                borderColor: 'rgba(79, 74, 51, 0.22)',
+              }}
+            />
+          ) : (
+            <Button
+              key={item.value}
+              size="small"
+              startIcon={item.icon}
+              disabled={disabled}
+              onClick={item.onClick}
+              sx={viewTabButtonSx(activeValue === item.value)}
+            >
+              {item.label}
+            </Button>
+          )
+        ))}
+      </Box>
+    </Box>
+  );
+};
 
 const LoadingState = () => (
   <Box
@@ -186,10 +286,13 @@ const BarComponent = () => {
   const [surah, setSurah] = useState(0);
   const [author, setAuthor] = useState(0);
   const [audio, setAudio] = useState(DEFAULT_AUDIO_IDENTIFIER);
-  const [gorunum, setGorunum] = useState(false);
+  const [viewMode, setViewMode] = useState('memorization');
+  const [memorizationView, setMemorizationView] = useState('arabic');
+  const [readingView, setReadingView] = useState('arabic');
   const [controlsHeight, setControlsHeight] = useState(0);
   const [mealDrawerOpenSignal, setMealDrawerOpenSignal] = useState(0);
   const [authorSelectOpen, setAuthorSelectOpen] = useState(false);
+  const [pendingReadingMeal, setPendingReadingMeal] = useState(false);
 
   const closeAuthorSelect = () => {
     setAuthorSelectOpen(false);
@@ -301,6 +404,7 @@ const getVerseList =function (surahId,authorId, options = {}){
       setAudio(DEFAULT_AUDIO_IDENTIFIER);
       setDataVerse([]);
       setVerseLoading(false);
+      setPendingReadingMeal(false);
       return;
     }
        updateSurahPath(newValue);
@@ -312,10 +416,19 @@ const getVerseList =function (surahId,authorId, options = {}){
     closeAuthorSelect();
     setAuthor(selectedAuthor);
     if (surah === 0 || selectedAuthor === 0) {
+      setPendingReadingMeal(false);
       return;
     }
 
-       getVerseList(surah,selectedAuthor, { openMealDrawer: true }).catch(() => {});
+       getVerseList(surah,selectedAuthor, { openMealDrawer: !pendingReadingMeal })
+        .then(() => {
+          if (pendingReadingMeal) {
+            setViewMode('reading');
+            setReadingView('meal');
+            setPendingReadingMeal(false);
+          }
+        })
+        .catch(() => {});
   };
 
      const handleChangeAudio = (newValue) => {
@@ -324,8 +437,18 @@ const getVerseList =function (surahId,authorId, options = {}){
       // getVerseList(surah,event.target.value);
   };
 
-  const handleChangeGorunum = (event) => {
-    setGorunum(event.target.checked);
+  const gorunum = viewMode === 'memorization' && memorizationView === 'latin';
+
+  const handleReadingViewChange = (nextReadingView) => {
+    if (nextReadingView === 'meal' && author === 0) {
+      toast.info('Meal görünümü için önce Meal Seçiniz.');
+      setPendingReadingMeal(true);
+      setAuthorSelectOpen(true);
+      return;
+    }
+
+    setPendingReadingMeal(false);
+    setReadingView(nextReadingView);
   };
 
   const handleRandomSurahMealOpen = (item) => {
@@ -513,50 +636,17 @@ const getVerseList =function (surahId,authorId, options = {}){
                   )}
                 />
               </FormControl>
-              <FormControl
-                sx={{
-                  flex: '0 0 auto',
-                  minHeight: { xs: 36, sm: 48 },
-                  justifyContent: 'flex-end',
-                  ml: { xs: 0, sm: 1 },
-                }}
-              >
-                <FormControlLabel
-                  control={(
-                    <Switch
-                      checked={gorunum}
-                      onChange={handleChangeGorunum}
-                      name="gorunum"
-                      disabled={surah === 0}
-                      sx={{
-                        '& .MuiSwitch-switchBase.Mui-checked': {
-                          color: '#6f7745',
-                        },
-                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                          backgroundColor: '#6f7745',
-                        },
-                        '& .MuiSwitch-thumb': {
-                          width: { xs: 16, sm: 20 },
-                          height: { xs: 16, sm: 20 },
-                        },
-                        '& .MuiSwitch-switchBase': {
-                          p: { xs: 0.75, sm: 1 },
-                        },
-                      }}
-                    />
-                  )}
-                  label={gorunum ? 'Latince' : 'Arapça'}
-                  sx={{
-                    m: 0,
-                    color: '#4f4a33',
-                    '& .MuiFormControlLabel-label': {
-                      fontWeight: 700,
-                      fontSize: { xs: '0.78rem', sm: '1rem' },
-                      whiteSpace: 'nowrap',
-                    },
-                  }}
+              <Box sx={{ flex: '0 0 auto', ml: { xs: 0, sm: 1 } }}>
+                <ViewTabs
+                  disabled={surah === 0}
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
+                  memorizationView={memorizationView}
+                  onMemorizationViewChange={setMemorizationView}
+                  readingView={readingView}
+                  onReadingViewChange={handleReadingViewChange}
                 />
-              </FormControl>
+              </Box>
             </Box>
         )}
 
@@ -655,6 +745,8 @@ const getVerseList =function (surahId,authorId, options = {}){
             author={author}
             audio={dataAudio.find(item => item.id === audio) || null}
             gorunum={gorunum}
+            readingMode={viewMode === 'reading'}
+            readingView={readingView}
             dataVerse={dataVerse}
             dataSurah={dataSurah}
             dataAuthor={dataAuthor}

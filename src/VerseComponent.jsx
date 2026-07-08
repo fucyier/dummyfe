@@ -482,6 +482,7 @@ const VerseComponent = ({
     ? verseCount || 1
     : Math.min(Math.max(endVerse, selectedStartVerse), verseCount || selectedStartVerse);
   const isConfigPlaybackActive = configPlaybackActive && audioDrawerOpen;
+  const selectedAuthor = dataAuthor.find(item => item.id === author);
 
   const handleStartVerseChange = (event) => {
     const nextStartVerse = Number(event.target.value);
@@ -1855,12 +1856,12 @@ const VerseComponent = ({
                                     display: 'inline-flex',
                                     direction: 'rtl',
                                     unicodeBidi: 'isolate',
-                                    px: isTokenActiveWord ? 0.12 : 0,
+                                    px: 0,
                                     borderRadius: 0.65,
                                     color: isTokenActiveWord ? '#139aa0' : 'inherit',
-                                    backgroundColor: isTokenActiveWord ? 'rgba(31, 166, 170, 0.24)' : 'transparent',
+                                    backgroundColor: 'transparent',
                                     cursor: token.word ? 'pointer' : 'default',
-                                    transition: 'color 120ms ease, background-color 120ms ease',
+                                    transition: 'color 120ms ease',
                                   }}
                                 >
                                   {token.text}
@@ -1895,28 +1896,51 @@ const VerseComponent = ({
           },
         }}
       >
-        <Button
-          variant="text"
-          size="small"
-          startIcon={readingSurahPlaybackActive && audioDrawerOpen ? <PauseIcon /> : <PlayArrowIcon />}
-          onClick={handleReadingSurahListenClick}
+        <Box
           sx={{
-            minHeight: 34,
-            px: 1.4,
-            color: '#6f7745',
-            fontWeight: 900,
-            textTransform: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 1,
             backgroundColor: 'rgba(255, 253, 244, 0.86)',
             border: '1px solid rgba(142, 118, 63, 0.22)',
             borderRadius: 999,
             boxShadow: '0 2px 8px rgba(47, 56, 35, 0.08)',
-            '&:hover': {
-              backgroundColor: 'rgba(215, 183, 101, 0.18)',
-            },
+            px: 0.5,
+            py: 0.15,
           }}
         >
-          Sureyi Dinle
-        </Button>
+          <Button
+            variant="text"
+            size="small"
+            startIcon={readingSurahPlaybackActive && audioDrawerOpen ? <PauseIcon /> : <PlayArrowIcon />}
+            onClick={handleReadingSurahListenClick}
+            sx={{
+              minHeight: 30,
+              px: 1,
+              color: '#6f7745',
+              fontWeight: 900,
+              textTransform: 'none',
+              borderRadius: 999,
+              '&:hover': {
+                backgroundColor: 'rgba(215, 183, 101, 0.18)',
+              },
+            }}
+          >
+            Sureyi Dinle
+          </Button>
+          <Typography
+            component="span"
+            sx={{
+              pr: 1,
+              color: '#6f5a22',
+              fontWeight: 900,
+              fontSize: { xs: '0.78rem', sm: '0.9rem' },
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {selectedAuthor?.name ? `${selectedAuthor.name} meali` : 'Meal'}
+          </Typography>
+        </Box>
       </Divider>
 
       <Paper
@@ -2395,11 +2419,18 @@ const VerseComponent = ({
         <Drawer
           anchor="bottom"
           open={audioDrawerOpen}
-          onClose={handleAudioDrawerClose}
+          onClose={(event, reason) => {
+            if (readingSurahPlaybackActive && reason === 'backdropClick') return;
+            handleAudioDrawerClose();
+          }}
+          hideBackdrop
           ModalProps={{ disableScrollLock: true }}
           slotProps={{
-            backdrop: {
-              sx: { backgroundColor: 'transparent' },
+            root: {
+              sx: { pointerEvents: 'none' },
+            },
+            paper: {
+              sx: { pointerEvents: 'auto' },
             },
           }}
         >

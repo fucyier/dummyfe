@@ -35,6 +35,7 @@ const uniqueByText = (items, field) => {
 };
 
 const DEFAULT_AUDIO_IDENTIFIER = 'quranfoundation:7';
+const DEFAULT_AUTHOR_ID = 30;
 
 const viewTabButtonSx = (active) => ({
   minHeight: { xs: 30, sm: 34 },
@@ -330,7 +331,7 @@ useEffect(() => {
         const initialSurah = getSurahFromPath(data);
         if (initialSurah) {
           setSurah(initialSurah.id);
-          getVerseList(initialSurah.id, author);
+          getVerseList(initialSurah.id, 0);
         }
         return fetchRandomVerseTranslations(data);
       })
@@ -441,9 +442,12 @@ const getVerseList =function (surahId,authorId, options = {}){
 
   const handleReadingViewChange = (nextReadingView) => {
     if (nextReadingView === 'meal' && author === 0) {
-      toast.info('Meal görünümü için önce Meal Seçiniz.');
-      setPendingReadingMeal(true);
-      setAuthorSelectOpen(true);
+      setPendingReadingMeal(false);
+      setAuthor(DEFAULT_AUTHOR_ID);
+      setReadingView('meal');
+      if (surah !== 0) {
+        getVerseList(surah, DEFAULT_AUTHOR_ID);
+      }
       return;
     }
 

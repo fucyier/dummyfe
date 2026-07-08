@@ -105,7 +105,6 @@ const AL_QURAN_CLOUD_KAABA_IMAM_IDENTIFIERS = new Set([
 ]);
 
 let turkishTafsirResourcesCache = null;
-let quranFoundationChapterRecitersCache = null;
 
 const FALLBACK_TURKISH_TAFSIR_EDITIONS = [
   {
@@ -332,60 +331,8 @@ const getQuranFoundationAudioUrlFromResponse = (response) => (
   normalizeQuranFoundationAudioUrl(response.data?.audio_files?.[0]?.url)
 );
 
-const normalizeReciterNameKey = (value) => (
-  String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/gi, '')
-    .toLocaleLowerCase('en')
-);
-
-const fetchQuranFoundationChapterReciters = async () => {
-  if (quranFoundationChapterRecitersCache) return quranFoundationChapterRecitersCache;
-
-  const requestConfig = {
-    params: {
-      language: 'en',
-    },
-  };
-  let response;
-
-  try {
-    response = await axios.get(`${QURAN_FOUNDATION_CONTENT_PROXY_URL}/resources/chapter_reciters`, requestConfig);
-    if (!Array.isArray(response.data?.reciters) && !Array.isArray(response.data?.chapter_reciters)) {
-      throw new Error('Quran Foundation proxy returned no chapter reciters.');
-    }
-  } catch (error) {
-    console.debug(`Quran Foundation chapter reciters lookup failed, using Quran.com public fallback: ${error?.message || 'unknown error'}`);
-    response = await axios.get(`${QURAN_COM_API_V4_URL}/resources/chapter_reciters`, requestConfig);
-  }
-  quranFoundationChapterRecitersCache = response.data?.reciters || response.data?.chapter_reciters || [];
-
-  return quranFoundationChapterRecitersCache;
-};
-
-const getQuranFoundationChapterReciterId = async (recitationId) => {
-  const recitation = QURAN_FOUNDATION_RECITATIONS.find(item => item.id === Number(recitationId));
-  if (!recitation) return null;
-
-  const reciters = await fetchQuranFoundationChapterReciters();
-  const recitationNameKey = normalizeReciterNameKey(recitation.reciterName);
-  const styleKey = normalizeReciterNameKey(recitation.style);
-  const matchingReciter = reciters.find((item) => {
-    const nameKey = normalizeReciterNameKey(item.reciter_name || item.name || item.english_name);
-    const styleMatches = !styleKey || normalizeReciterNameKey(item.style || item.recitation_style || item.moshaf_name).includes(styleKey);
-
-    return nameKey.includes(recitationNameKey) && styleMatches;
-  }) || reciters.find((item) => {
-    const nameKey = normalizeReciterNameKey(item.reciter_name || item.name || item.english_name);
-    return nameKey.includes(recitationNameKey);
-  });
-
-  return matchingReciter?.id || matchingReciter?.reciter_id || null;
-};
-
 export const fetchQuranFoundationChapterAudio = async (recitationId, surahId) => {
-  const chapterReciterId = await getQuranFoundationChapterReciterId(recitationId);
+  const chapterReciterId = Number(recitationId);
   if (!chapterReciterId || !surahId) return null;
 
   const requestConfig = {
@@ -393,18 +340,13 @@ export const fetchQuranFoundationChapterAudio = async (recitationId, surahId) =>
       segments: true,
     },
   };
-  let response;
+  const response = await axios.get(`${QURAN_COM_API_V4_URL}/chapter_recitations/${chapterReciterId}/${surahId}`, requestConfig);
+  const proxyAudioFile = response.data?.audio_file || response.data?.audio_files?.[0] || response.data;
 
-  try {
-    response = await axios.get(`${QURAN_FOUNDATION_CONTENT_PROXY_URL}/chapter_recitations/${chapterReciterId}/${surahId}`, requestConfig);
-    const proxyAudioFile = response.data?.audio_file || response.data?.audio_files?.[0] || response.data;
-    if (!proxyAudioFile?.audio_url && !proxyAudioFile?.url) {
-      throw new Error('Quran Foundation proxy returned no chapter audio URL.');
-    }
-  } catch (error) {
-    console.debug(`Quran Foundation chapter audio lookup failed, using Quran.com public fallback: ${error?.message || 'unknown error'}`);
-    response = await axios.get(`${QURAN_COM_API_V4_URL}/chapter_recitations/${chapterReciterId}/${surahId}`, requestConfig);
+  if (!proxyAudioFile?.audio_url && !proxyAudioFile?.url) {
+    throw new Error('Quran chapter audio URL bulunamadı.');
   }
+
   const audioFile = response.data?.audio_file || response.data?.audio_files?.[0] || response.data;
   const audioUrl = normalizeQuranFoundationAudioUrl(audioFile?.audio_url || audioFile?.url);
 

@@ -8,6 +8,7 @@ import { AppBar, Autocomplete, Button, CircularProgress, Dialog, DialogContent, 
 import SendIcon from '@mui/icons-material/Send';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import PauseIcon from '@mui/icons-material/Pause';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -21,7 +22,7 @@ import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
-import { fetchQuranFoundationAyahAudioUrl, fetchVerseTafsirs, fetchVerseTranslationsByAuthors, normalizeQuranFoundationAudioUrl } from './api';
+import { fetchQuranFoundationAyahAudioUrl, fetchQuranFoundationChapterAudio, fetchVerseTafsirs, fetchVerseTranslationsByAuthors, normalizeQuranFoundationAudioUrl } from './api';
 
 const ArabicVerse = styled(Paper)(({ theme }) => ({
   backgroundColor: '#fff8d9',
@@ -149,6 +150,34 @@ const formatConfigPlaybackSpeedLabel = (speed) => (
   Number.isInteger(speed) ? `${speed}.0` : String(speed)
 );
 
+const getTimestampVerseNumber = (timestamp) => (
+  Number(String(timestamp?.verse_key || '').split(':')[1])
+);
+
+const getTimestampRange = (timestamp) => ({
+  from: Number(timestamp?.timestamp_from ?? timestamp?.start_ms ?? timestamp?.start ?? 0),
+  to: Number(timestamp?.timestamp_to ?? timestamp?.end_ms ?? timestamp?.end ?? 0),
+});
+
+const findTimestampAtTime = (timestamps = [], timeSeconds = 0) => {
+  const timeMs = timeSeconds * 1000;
+
+  return timestamps.find((timestamp) => {
+    const { from, to } = getTimestampRange(timestamp);
+    return timeMs >= from && timeMs <= to;
+  }) || null;
+};
+
+const findSegmentAtTime = (timestamp, timeSeconds = 0) => {
+  const timeMs = timeSeconds * 1000;
+  const segments = timestamp?.segments || [];
+
+  return segments.find((segment) => {
+    const [, from, to] = segment;
+    return timeMs >= Number(from) && timeMs <= Number(to);
+  }) || null;
+};
+
 const getScrollTop = () => (
   window.scrollY
   || document.documentElement.scrollTop
@@ -172,12 +201,15 @@ const getControlsOffset = () => {
 
 const scrollVerseToTop = (verseId, options = {}) => {
   const verseElement = document.getElementById(
-    options.includeActions ? `verse-actions-${verseId}` : `verse-${verseId}`,
+    options.includeActions ? `verse-actions-${verseId}` : `verse-highlight-${verseId}`,
   ) || document.getElementById(`verse-${verseId}`);
 
   if (!verseElement) return;
 
-  const top = Math.max(0, verseElement.getBoundingClientRect().top + getScrollTop() - getControlsOffset());
+  const top = Math.max(
+    0,
+    verseElement.getBoundingClientRect().top + getScrollTop() - getControlsOffset() - (options.extraOffset || 0),
+  );
   const scrollOptions = { top, behavior: 'smooth' };
 
   document.scrollingElement?.scrollTo(scrollOptions);
@@ -212,6 +244,12 @@ const getMp3QuranSurahAudioUrl = (audioOption, surahId) => {
 
   const baseUrl = audioOption.server.endsWith('/') ? audioOption.server : `${audioOption.server}/`;
   return `${baseUrl}${String(surahId).padStart(3, '0')}.mp3`;
+};
+
+const getAlquranCloudSurahAudioUrl = (audioOption, surahId) => {
+  if (!audioOption?.identifier || !surahId) return '';
+
+  return `https://cdn.islamic.network/quran/audio-surah/128/${audioOption.identifier}/${surahId}.mp3`;
 };
 
 const getAudioPlayerSrc = (audioOption, surahId, verseAudioId) => {
@@ -268,6 +306,10 @@ const VerseComponent = ({
   const [arabicVerseLoopIds, setArabicVerseLoopIds] = useState({});
   const [arabicPanelPlaybackVerseId, setArabicPanelPlaybackVerseId] = useState(null);
   const [arabicPanelLoadingVerseId, setArabicPanelLoadingVerseId] = useState(null);
+  const [readingSurahPlaybackActive, setReadingSurahPlaybackActive] = useState(false);
+  const [activeReadingWordIndex, setActiveReadingWordIndex] = useState(null);
+  const [readingSurahAudio, setReadingSurahAudio] = useState(null);
+  const [readingSurahResumeTime, setReadingSurahResumeTime] = useState(0);
   const [selectedWordPopover, setSelectedWordPopover] = useState({
     anchorEl: null,
     word: null,
@@ -275,6 +317,7 @@ const VerseComponent = ({
   const lastMealDrawerOpenSignalRef = useRef(mealDrawerOpenSignal);
   const wordAudioRef = useRef(null);
   const wordAudioPlayTokenRef = useRef(0);
+  const readingAudioRef = useRef(null);
   const verseCount = dataVerse?.verse_count || dataVerse?.verses?.length || 0;
   const selectedAudio = normalizeAudioOption(audio);
   const isMp3QuranAudio = selectedAudio?.source === 'mp3quran';
@@ -313,6 +356,57 @@ const VerseComponent = ({
       document.removeEventListener('pointerdown', handleDocumentPointerDown);
     };
   }, [selectedWordPopover.anchorEl]);
+
+  useEffect(() => {
+    if (readingSurahAudio?.audioUrl) return undefined;
+
+    if (!readingSurahPlaybackActive || !audioDrawerOpen || !activeVerseId) {
+      setActiveReadingWordIndex(null);
+      return undefined;
+    }
+
+    const activeVerse = dataVerse?.verses?.find(item => String(item.id) === String(activeVerseId));
+    const wordCount = activeVerse?.quranFoundationWords?.length || 0;
+
+    if (wordCount === 0) {
+      setActiveReadingWordIndex(null);
+      return undefined;
+    }
+
+    const updateActiveWordIndex = () => {
+      const audioElements = [...document.querySelectorAll('audio')];
+      const currentAudio = audioElements.find(item => !item.paused && Number.isFinite(item.duration) && item.duration > 0)
+        || audioElements.find(item => item.currentSrc === audioPlayerSrc || item.src === audioPlayerSrc);
+
+      if (!currentAudio || !Number.isFinite(currentAudio.duration) || currentAudio.duration <= 0) {
+        setActiveReadingWordIndex(null);
+        return;
+      }
+
+      const progress = Math.min(0.999, Math.max(0, currentAudio.currentTime / currentAudio.duration));
+      setActiveReadingWordIndex(Math.min(wordCount - 1, Math.floor(progress * wordCount)));
+    };
+
+    updateActiveWordIndex();
+    const intervalId = window.setInterval(updateActiveWordIndex, 120);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [readingSurahPlaybackActive, audioDrawerOpen, activeVerseId, audioReplayKey, audioPlayerSrc, dataVerse?.verses, readingSurahAudio]);
+
+  useEffect(() => {
+    setReadingSurahPlaybackActive(false);
+    setReadingSurahAudio(null);
+    setReadingSurahResumeTime(0);
+    setActiveReadingWordIndex(null);
+  }, [surah, selectedAudio?.id, selectedAudio?.identifier]);
+
+  useEffect(() => {
+    if (!readingSurahPlaybackActive || !activeVerseId || !readingMode) return;
+
+    scheduleVerseScrollToTop(activeVerseId, { extraOffset: 72 });
+  }, [readingSurahPlaybackActive, activeVerseId, readingMode, readingView]);
 
   const renderPlaybackSpeedControl = (labelId) => (
     <FormControl size="small" sx={{ flex: '0 0 96px', minWidth: 96 }}>
@@ -907,6 +1001,27 @@ const VerseComponent = ({
     </Box>
   );
 
+  const updateReadingSurahPosition = (timeSeconds) => {
+    const readingTimestamps = readingSurahAudio?.timestamps || readingSurahAudio?.segments || [];
+    const timestamp = findTimestampAtTime(readingTimestamps, timeSeconds);
+    if (!timestamp) return;
+
+    const verseNumber = getTimestampVerseNumber(timestamp);
+    const verse = dataVerse?.verses?.find(item => item.verse_number === verseNumber);
+    if (verse) {
+      setActiveVerseId(String(verse.id));
+    }
+
+    const segment = findSegmentAtTime(timestamp, timeSeconds);
+    if (segment) {
+      setActiveReadingWordIndex(Math.max(0, Number(segment[0]) - 1));
+    } else {
+      setActiveReadingWordIndex(null);
+    }
+  };
+
+  const readingSurahAudioActive = readingSurahPlaybackActive && Boolean(readingSurahAudio?.audioUrl);
+
   const audioDrawerContent = (
     <Box
       sx={{
@@ -924,16 +1039,50 @@ const VerseComponent = ({
       role="presentation"
     >
       <Box sx={{ flex: '1 1 auto', minWidth: 0 }}>
-        <AudioPlayer
-          key={audioReplayKey}
-          className="quran-audio-player"
-          autoPlay
-          src={audioPlayerSrc}
-          width="100%"
-          color="#cfcfcf"
-          sliderColor="#d7b765"
-          backgroundColor="#54613d"
-          onEnd={async () => {
+        {readingSurahAudioActive ? (
+          <Box
+            component="audio"
+            ref={readingAudioRef}
+            key={readingSurahAudio.audioUrl}
+            controls
+            autoPlay
+            src={readingSurahAudio.audioUrl}
+            onLoadedMetadata={(event) => {
+              if (readingSurahResumeTime > 0) {
+                event.currentTarget.currentTime = readingSurahResumeTime;
+              }
+              updateReadingSurahPosition(event.currentTarget.currentTime);
+            }}
+            onTimeUpdate={(event) => {
+              const nextTime = event.currentTarget.currentTime;
+              setReadingSurahResumeTime(nextTime);
+              updateReadingSurahPosition(nextTime);
+            }}
+            onEnded={() => {
+              setAudioDrawerOpen(false);
+              setReadingSurahPlaybackActive(false);
+              setReadingSurahResumeTime(0);
+              setActiveVerseId(null);
+              setActiveReadingWordIndex(null);
+              resetLessonSettings();
+            }}
+            sx={{
+              width: '100%',
+              height: 38,
+              display: 'block',
+            }}
+          />
+        ) : (
+          <AudioPlayer
+            key={audioReplayKey}
+            className="quran-audio-player"
+            autoPlay
+            src={audioPlayerSrc}
+            width="100%"
+            color="#cfcfcf"
+            sliderColor="#d7b765"
+            backgroundColor="#54613d"
+            onEnd={async () => {
             if (isMp3QuranAudio && loopLesson) {
               setAudioDrawerOpen(true);
               setSecilenSound(`surah-${surah}`);
@@ -958,6 +1107,8 @@ const VerseComponent = ({
                 setActiveVerseId(null);
                 setArabicPanelPlaybackVerseId(null);
                 setArabicPanelLoadingVerseId(null);
+                setReadingSurahPlaybackActive(false);
+                setActiveReadingWordIndex(null);
                 resetLessonSettings();
               }
               return;
@@ -969,6 +1120,8 @@ const VerseComponent = ({
               setActiveVerseId(null);
               setArabicPanelPlaybackVerseId(null);
               setArabicPanelLoadingVerseId(null);
+              setReadingSurahPlaybackActive(false);
+              setActiveReadingWordIndex(null);
               resetLessonSettings();
               return;
             }
@@ -1002,6 +1155,8 @@ const VerseComponent = ({
                 setAudioDrawerOpen(false);
                 setSecilenSound(null);
                 setActiveVerseId(null);
+                setReadingSurahPlaybackActive(false);
+                setActiveReadingWordIndex(null);
                 resetLessonSettings();
               }
               return;
@@ -1027,6 +1182,8 @@ const VerseComponent = ({
                   setAudioDrawerOpen(false);
                   setSecilenSound(null);
                   setActiveVerseId(null);
+                  setReadingSurahPlaybackActive(false);
+                  setActiveReadingWordIndex(null);
                   resetLessonSettings();
                 }
                 return;
@@ -1036,9 +1193,12 @@ const VerseComponent = ({
             setAudioDrawerOpen(false);
             setSecilenSound(null);
             setActiveVerseId(null);
+            setReadingSurahPlaybackActive(false);
+            setActiveReadingWordIndex(null);
             resetLessonSettings();
-          }}
-        />
+            }}
+          />
+        )}
       </Box>
       {renderPlaybackSpeedControl('verse-playback-speed-label')}
     </Box>
@@ -1104,6 +1264,8 @@ const VerseComponent = ({
       return;
     }
 
+    setReadingSurahPlaybackActive(false);
+
     if (isMp3QuranAudio) {
       handleVerseAudioClick(verseId);
       return;
@@ -1141,6 +1303,8 @@ const VerseComponent = ({
       return;
     }
 
+    setReadingSurahPlaybackActive(false);
+
     if (isMp3QuranAudio) {
       if (!mp3QuranSurahAvailable) {
         toast.error('Seçilen seslendiren bu sure için uygun değil.');
@@ -1168,12 +1332,93 @@ const VerseComponent = ({
   };
 
   const handleAudioDrawerClose = () => {
+    if (readingSurahPlaybackActive && readingAudioRef.current) {
+      setReadingSurahResumeTime(readingAudioRef.current.currentTime);
+    }
     setAudioDrawerOpen(false);
     setSecilenSound(null);
     setActiveVerseId(null);
     setArabicPanelPlaybackVerseId(null);
     setArabicPanelLoadingVerseId(null);
+    setReadingSurahPlaybackActive(false);
     resetLessonSettings();
+  };
+
+  const handleReadingSurahListenClick = async () => {
+    if (readingSurahPlaybackActive && audioDrawerOpen) {
+      if (readingAudioRef.current) {
+        setReadingSurahResumeTime(readingAudioRef.current.currentTime);
+        readingAudioRef.current.pause();
+      }
+      setAudioDrawerOpen(false);
+      setReadingSurahPlaybackActive(false);
+      return;
+    }
+
+    if (!selectedAudio) {
+      toast.error('Lütfen Seslendiren Seçiniz');
+      return;
+    }
+
+    const firstVerse = dataVerse?.verses?.[0];
+    if (!firstVerse) return;
+
+    resetLessonSettings();
+    setArabicPanelPlaybackVerseId(null);
+    setArabicPanelLoadingVerseId(null);
+
+    if (readingSurahAudio?.audioUrl) {
+      setReadingSurahPlaybackActive(true);
+      setAudioDrawerOpen(true);
+      setLessonMode(false);
+      updateReadingSurahPosition(readingSurahResumeTime);
+      return;
+    }
+
+    try {
+      let nextReadingAudio = null;
+
+      if (isMp3QuranAudio) {
+        if (!mp3QuranSurahAvailable) {
+          toast.error('Seçilen seslendiren bu sure için uygun değil.');
+          return;
+        }
+
+        nextReadingAudio = {
+          audioUrl: getMp3QuranSurahAudioUrl(selectedAudio, surah),
+          timestamps: [],
+        };
+      } else if (isQuranFoundationAudio) {
+        nextReadingAudio = await fetchQuranFoundationChapterAudio(selectedAudio.recitationId, surah);
+      } else {
+        nextReadingAudio = {
+          audioUrl: getAlquranCloudSurahAudioUrl(selectedAudio, surah),
+          timestamps: [],
+        };
+      }
+
+      if (!nextReadingAudio?.audioUrl) {
+        toast.error('Seçili seslendiren için sure ses dosyası bulunamadı.');
+        return;
+      }
+
+      const firstVerseId = String(firstVerse.id);
+      setReadingSurahAudio(nextReadingAudio);
+      setReadingSurahResumeTime(0);
+      setReadingSurahPlaybackActive(true);
+      setActiveReadingWordIndex(null);
+      setAudioDrawerOpen(true);
+      setLessonMode(false);
+      setSecilenSound(nextReadingAudio.audioUrl);
+      setActiveVerseId(firstVerseId);
+      setCurrentVerseRepeat(1);
+      setAudioReplayKey((prevKey) => prevKey + 1);
+    } catch (error) {
+      console.error(error);
+      setReadingSurahPlaybackActive(false);
+      setActiveReadingWordIndex(null);
+      toast.error('Sure sesi yüklenirken bir hata oluştu.');
+    }
   };
 
   const stopActiveWordAudio = () => {
@@ -1248,6 +1493,49 @@ const VerseComponent = ({
     setSelectedWordPopover({
       anchorEl: null,
       word: null,
+    });
+  };
+
+  const handleReadingWordClick = (event, token) => {
+    if (!token.word) return;
+
+    const readingTimestamps = readingSurahAudio?.timestamps || readingSurahAudio?.segments || [];
+    const hasActiveReadingSurahSession = Boolean(
+      readingSurahPlaybackActive
+      && audioDrawerOpen
+      && readingAudioRef.current
+      && readingSurahAudio?.audioUrl
+      && readingTimestamps.length,
+    );
+
+    if (!hasActiveReadingSurahSession) {
+      handleWordClick(event, token.word);
+      return;
+    }
+
+    event.stopPropagation();
+    if (event.currentTarget instanceof HTMLElement) {
+      event.currentTarget.blur();
+    }
+
+    const timestamp = readingTimestamps.find(item => getTimestampVerseNumber(item) === token.verseNumber);
+    const segment = timestamp?.segments?.find(item => Number(item[0]) === Number(token.wordIndex) + 1);
+
+    if (!segment) {
+      handleWordClick(event, token.word);
+      return;
+    }
+
+    stopActiveWordAudio();
+    const seekTime = Number(segment[1]) / 1000;
+    setReadingSurahResumeTime(seekTime);
+    setActiveVerseId(token.verseId);
+    setActiveReadingWordIndex(token.wordIndex);
+    readingAudioRef.current.currentTime = seekTime;
+    readingAudioRef.current.play().catch(() => {});
+    setSelectedWordPopover({
+      anchorEl: event.currentTarget,
+      word: token.word,
     });
   };
 
@@ -1360,6 +1648,7 @@ const VerseComponent = ({
         lineMap.get(lineNumber).push({
           type: 'fallbackVerse',
           id: `${verseItem.id}-fallback`,
+          verseId: String(verseItem.id),
           text: formatArabicVerse(verseItem.verse),
           verseNumber: verseItem.verse_number,
         });
@@ -1375,6 +1664,10 @@ const VerseComponent = ({
         lineMap.get(lineNumber).push({
           type: 'word',
           id: `${verseItem.id}-${word.position || index}`,
+          verseId: String(verseItem.id),
+          wordIndex: index,
+          isVerseStart: index === 0,
+          word,
           text: formatArabicVerse(word.uthmaniText || word.text),
           verseNumber: verseItem.verse_number,
           isVerseEnd: index === words.length - 1,
@@ -1397,6 +1690,40 @@ const VerseComponent = ({
 
     return (
       <Box sx={{ display: 'grid', gap: 2.5, pb: dataVerse.audio !== undefined ? 7 : 0 }}>
+        <Divider
+          sx={{
+            maxWidth: 1120,
+            width: '100%',
+            mx: 'auto',
+            '&::before, &::after': {
+              borderColor: 'rgba(142, 118, 63, 0.35)',
+            },
+          }}
+        >
+          <Button
+            variant="text"
+            size="small"
+            startIcon={readingSurahPlaybackActive && audioDrawerOpen ? <PauseIcon /> : <PlayArrowIcon />}
+            onClick={handleReadingSurahListenClick}
+            sx={{
+              minHeight: 34,
+              px: 1.4,
+              color: '#6f7745',
+              fontWeight: 900,
+              textTransform: 'none',
+              backgroundColor: 'rgba(255, 253, 244, 0.86)',
+              border: '1px solid rgba(142, 118, 63, 0.22)',
+              borderRadius: 999,
+              boxShadow: '0 2px 8px rgba(47, 56, 35, 0.08)',
+              '&:hover': {
+                backgroundColor: 'rgba(215, 183, 101, 0.18)',
+              },
+            }}
+          >
+            Sureyi Dinle
+          </Button>
+        </Divider>
+
         {zeroVerseText && (
           <Box sx={{ textAlign: 'center', color: '#211b14' }}>
             <Typography
@@ -1457,31 +1784,98 @@ const VerseComponent = ({
                 lineHeight: 1.85,
               }}
             >
-              {page.lines.map((line) => (
-                <Box
-                  key={`${page.pageNumber}-${line.lineNumber}`}
-                  sx={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    justifyContent: 'center',
-                    alignItems: 'baseline',
-                    columnGap: '0.22em',
-                    rowGap: '0.06em',
-                    direction: 'rtl',
-                    unicodeBidi: 'isolate',
-                  }}
-                >
-                  {line.tokens.map((token) => (
-                    <Fragment key={token.id}>
-                      <Box component="span" sx={{ display: 'inline-flex', direction: 'rtl', unicodeBidi: 'isolate' }}>
-                        {token.text}
-                      </Box>
-                      {token.isVerseEnd && <VerseEndMark>{toArabicNumber(token.verseNumber)}</VerseEndMark>}
-                      {token.type === 'fallbackVerse' && <VerseEndMark>{toArabicNumber(token.verseNumber)}</VerseEndMark>}
-                    </Fragment>
-                  ))}
-                </Box>
-              ))}
+              {page.lines.map((line) => {
+                const tokenGroups = line.tokens.reduce((groups, token) => {
+                  const lastGroup = groups[groups.length - 1];
+                  if (lastGroup && lastGroup.verseId === token.verseId) {
+                    lastGroup.tokens.push(token);
+                    return groups;
+                  }
+
+                  groups.push({
+                    verseId: token.verseId,
+                    tokens: [token],
+                  });
+                  return groups;
+                }, []);
+
+                return (
+                  <Box
+                    key={`${page.pageNumber}-${line.lineNumber}`}
+                    sx={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      justifyContent: 'center',
+                      alignItems: 'baseline',
+                      columnGap: '0.22em',
+                      rowGap: '0.06em',
+                      direction: 'rtl',
+                      unicodeBidi: 'isolate',
+                    }}
+                  >
+                    {tokenGroups.map((group) => {
+                      const isGroupActiveVerse = Boolean(activeVerseId) && activeVerseId === group.verseId;
+
+                      return (
+                        <Box
+                          id={group.tokens.some(token => token.isVerseStart || token.type === 'fallbackVerse') ? `verse-highlight-${group.verseId}` : undefined}
+                          key={`${page.pageNumber}-${line.lineNumber}-${group.verseId}`}
+                          component="span"
+                          sx={{
+                            display: 'inline-flex',
+                            alignItems: 'baseline',
+                            gap: '0.22em',
+                            direction: 'rtl',
+                            unicodeBidi: 'isolate',
+                            px: isGroupActiveVerse ? 0.28 : 0,
+                            borderRadius: 0.85,
+                            backgroundColor: isGroupActiveVerse ? 'rgba(84, 97, 61, 0.16)' : 'transparent',
+                            boxShadow: isGroupActiveVerse ? '0 0 0 2px rgba(84, 97, 61, 0.07)' : 'none',
+                            transition: 'background-color 120ms ease, box-shadow 120ms ease',
+                          }}
+                        >
+                          {group.tokens.map((token) => {
+                            const isTokenActiveWord = readingSurahPlaybackActive && isGroupActiveVerse && activeReadingWordIndex === token.wordIndex;
+
+                            return (
+                              <Fragment key={token.id}>
+                                <Box
+                                  id={token.isVerseStart || token.type === 'fallbackVerse' ? `verse-${token.verseId}` : undefined}
+                                  component="span"
+                                  role={token.word ? 'button' : undefined}
+                                  tabIndex={token.word ? 0 : undefined}
+                                  onClick={token.word ? (event) => handleReadingWordClick(event, token) : undefined}
+                                  onKeyDown={token.word ? (event) => {
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                      event.preventDefault();
+                                      handleReadingWordClick(event, token);
+                                    }
+                                  } : undefined}
+                                  sx={{
+                                    display: 'inline-flex',
+                                    direction: 'rtl',
+                                    unicodeBidi: 'isolate',
+                                    px: isTokenActiveWord ? 0.12 : 0,
+                                    borderRadius: 0.65,
+                                    color: isTokenActiveWord ? '#139aa0' : 'inherit',
+                                    backgroundColor: isTokenActiveWord ? 'rgba(31, 166, 170, 0.24)' : 'transparent',
+                                    cursor: token.word ? 'pointer' : 'default',
+                                    transition: 'color 120ms ease, background-color 120ms ease',
+                                  }}
+                                >
+                                  {token.text}
+                                </Box>
+                                {token.isVerseEnd && <VerseEndMark>{toArabicNumber(token.verseNumber)}</VerseEndMark>}
+                                {token.type === 'fallbackVerse' && <VerseEndMark>{toArabicNumber(token.verseNumber)}</VerseEndMark>}
+                              </Fragment>
+                            );
+                          })}
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                );
+              })}
             </Box>
           </Paper>
         ))}
@@ -1490,41 +1884,85 @@ const VerseComponent = ({
   };
 
   const renderReadingMeal = () => (
-    <Paper
-      elevation={0}
-      sx={{
-        maxWidth: 1120,
-        mx: 'auto',
-        width: '100%',
-        p: { xs: 1.5, sm: 2.5 },
-        borderRadius: 1,
-        backgroundColor: 'rgba(255, 253, 244, 0.92)',
-        border: '1px solid rgba(142, 118, 63, 0.18)',
-        boxShadow: '0 8px 24px rgba(47, 56, 35, 0.08)',
-        pb: dataVerse.audio !== undefined ? 7 : 2.5,
-        textAlign: 'left',
-      }}
-    >
-      {(dataVerse?.verses || []).map((item, index) => (
-        <Typography
-          key={item.id}
-          id={`verse-${item.id}`}
-          component="span"
+    <Box sx={{ display: 'grid', gap: 2.5, pb: dataVerse.audio !== undefined ? 7 : 0 }}>
+      <Divider
+        sx={{
+          maxWidth: 1120,
+          width: '100%',
+          mx: 'auto',
+          '&::before, &::after': {
+            borderColor: 'rgba(142, 118, 63, 0.35)',
+          },
+        }}
+      >
+        <Button
+          variant="text"
+          size="small"
+          startIcon={readingSurahPlaybackActive && audioDrawerOpen ? <PauseIcon /> : <PlayArrowIcon />}
+          onClick={handleReadingSurahListenClick}
           sx={{
-            display: 'inline',
-            color: '#211b14',
-            fontWeight: 500,
-            fontSize: { xs: '1.15rem', sm: '1.42rem' },
-            lineHeight: 1.85,
+            minHeight: 34,
+            px: 1.4,
+            color: '#6f7745',
+            fontWeight: 900,
+            textTransform: 'none',
+            backgroundColor: 'rgba(255, 253, 244, 0.86)',
+            border: '1px solid rgba(142, 118, 63, 0.22)',
+            borderRadius: 999,
+            boxShadow: '0 2px 8px rgba(47, 56, 35, 0.08)',
+            '&:hover': {
+              backgroundColor: 'rgba(215, 183, 101, 0.18)',
+            },
           }}
         >
-          <Box component="span" sx={{ fontWeight: 900 }}>
-            {item.verse_number}.
-          </Box>
-          {` ${item.translation?.text || ''}${index < (dataVerse?.verses?.length || 0) - 1 ? ' ' : ''}`}
-        </Typography>
-      ))}
-    </Paper>
+          Sureyi Dinle
+        </Button>
+      </Divider>
+
+      <Paper
+        elevation={0}
+        sx={{
+          maxWidth: 1120,
+          mx: 'auto',
+          width: '100%',
+          p: { xs: 1.5, sm: 2.5 },
+          borderRadius: 1,
+          backgroundColor: 'rgba(255, 253, 244, 0.92)',
+          border: '1px solid rgba(142, 118, 63, 0.18)',
+          boxShadow: '0 8px 24px rgba(47, 56, 35, 0.08)',
+          pb: dataVerse.audio !== undefined ? 7 : 2.5,
+          textAlign: 'left',
+        }}
+      >
+        {(dataVerse?.verses || []).map((item, index) => {
+          const isMealActiveVerse = Boolean(activeVerseId) && activeVerseId === String(item.id);
+
+          return (
+            <Typography
+              key={item.id}
+              id={`verse-${item.id}`}
+              component="span"
+              sx={{
+                display: 'inline',
+                color: isMealActiveVerse ? '#2f3a21' : '#211b14',
+                fontWeight: isMealActiveVerse ? 800 : 500,
+                fontSize: { xs: '1.15rem', sm: '1.42rem' },
+                lineHeight: 1.85,
+                backgroundColor: isMealActiveVerse ? 'rgba(84, 97, 61, 0.2)' : 'transparent',
+                borderRadius: 0.75,
+                boxShadow: isMealActiveVerse ? '0 0 0 3px rgba(84, 97, 61, 0.1)' : 'none',
+                transition: 'background-color 120ms ease, color 120ms ease, box-shadow 120ms ease',
+              }}
+            >
+              <Box component="span" sx={{ fontWeight: 900 }}>
+                {item.verse_number}.
+              </Box>
+              {` ${item.translation?.text || ''}${index < (dataVerse?.verses?.length || 0) - 1 ? ' ' : ''}`}
+            </Typography>
+          );
+        })}
+      </Paper>
+    </Box>
   );
 
   const isActiveVerse = (verseId) => audioDrawerOpen && activeVerseId === String(verseId);
@@ -1952,22 +2390,21 @@ const VerseComponent = ({
             </Fragment>
             );
           })}
-
-          <Drawer
-            anchor="bottom"
-            open={audioDrawerOpen}
-            onClose={handleAudioDrawerClose}
-            ModalProps={{ disableScrollLock: true }}
-            slotProps={{
-              backdrop: {
-                sx: { backgroundColor: 'transparent' },
-              },
-            }}
-          >
-            {audioDrawerContent}
-          </Drawer>
         </Stack>
         )}
+        <Drawer
+          anchor="bottom"
+          open={audioDrawerOpen}
+          onClose={handleAudioDrawerClose}
+          ModalProps={{ disableScrollLock: true }}
+          slotProps={{
+            backdrop: {
+              sx: { backgroundColor: 'transparent' },
+            },
+          }}
+        >
+          {audioDrawerContent}
+        </Drawer>
       </div>
 
       <Popper

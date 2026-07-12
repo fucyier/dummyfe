@@ -18,6 +18,9 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AutoStoriesIcon from '@mui/icons-material/AutoStories';
+import TextDecreaseIcon from '@mui/icons-material/TextDecrease';
+import TextIncreaseIcon from '@mui/icons-material/TextIncrease';
+import FontDownloadIcon from '@mui/icons-material/FontDownload';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import { Fragment, useEffect, useRef, useState } from 'react';
@@ -97,6 +100,34 @@ const DEFAULT_START_VERSE = 1;
 const DEFAULT_END_VERSE = 0;
 const MIN_REPEAT_EACH_VERSE = 1;
 const MAX_REPEAT_EACH_VERSE = 99;
+const DEFAULT_ARABIC_FONT_KEY = 'uthman-taha';
+const DEFAULT_ARABIC_FONT_SIZE_INDEX = 2;
+
+const ARABIC_FONT_OPTIONS = [
+  {
+    key: 'default',
+    label: 'Varsayılan Mushaf',
+    family: 'var(--font-mushaf), KFGQPC HAFS, KFGQPC Uthman Taha Naskh, Traditional Arabic, serif',
+  },
+  {
+    key: 'hafs',
+    label: 'KFGQPC Hafs',
+    family: 'KFGQPC HAFS, KFGQPC Uthman Taha Naskh, Traditional Arabic, serif',
+  },
+  {
+    key: 'uthman-taha',
+    label: 'Uthman Taha Naskh',
+    family: 'KFGQPC Uthman Taha Naskh, KFGQPC HAFS, Traditional Arabic, serif',
+  },
+  {
+    key: 'traditional',
+    label: 'Traditional Arabic',
+    family: 'Traditional Arabic, serif',
+  },
+];
+
+const ARABIC_BASE_FONT_SIZE = 'clamp(1.85rem, 3.7vw, 3.35rem)';
+const ARABIC_FONT_SCALE_STEPS = [0.86, 0.93, 1, 1.06, 1.1];
 
 const compactAutocompleteSlotProps = {
   paper: {
@@ -306,6 +337,8 @@ const VerseComponent = ({
   const [arabicVerseLoopIds, setArabicVerseLoopIds] = useState({});
   const [arabicPanelPlaybackVerseId, setArabicPanelPlaybackVerseId] = useState(null);
   const [arabicPanelLoadingVerseId, setArabicPanelLoadingVerseId] = useState(null);
+  const [arabicFontKey, setArabicFontKey] = useState(DEFAULT_ARABIC_FONT_KEY);
+  const [arabicFontSizeIndex, setArabicFontSizeIndex] = useState(DEFAULT_ARABIC_FONT_SIZE_INDEX);
   const [readingSurahPlaybackActive, setReadingSurahPlaybackActive] = useState(false);
   const [activeReadingWordIndex, setActiveReadingWordIndex] = useState(null);
   const [readingSurahAudio, setReadingSurahAudio] = useState(null);
@@ -324,6 +357,29 @@ const VerseComponent = ({
   const isQuranFoundationAudio = selectedAudio?.source === 'quranfoundation';
   const audioPlayerSrc = getAudioPlayerSrc(selectedAudio, surah, secilenSound);
   const mp3QuranSurahAvailable = !isMp3QuranAudio || selectedAudio?.surahList?.includes(surah);
+  const selectedArabicFont = ARABIC_FONT_OPTIONS.find((item) => item.key === arabicFontKey) || ARABIC_FONT_OPTIONS[0];
+  const arabicFontScale = ARABIC_FONT_SCALE_STEPS[arabicFontSizeIndex] || ARABIC_FONT_SCALE_STEPS[DEFAULT_ARABIC_FONT_SIZE_INDEX];
+  const arabicVerseTextSx = {
+    fontFamily: selectedArabicFont.family,
+    fontSize: ARABIC_BASE_FONT_SIZE,
+    transform: `scale(${arabicFontScale})`,
+    transformOrigin: 'center right',
+    willChange: 'transform',
+  };
+  const readingArabicVerseTextSx = {
+    fontFamily: selectedArabicFont.family,
+    fontSize: {
+      xs: `${2 * arabicFontScale}rem`,
+      sm: `${2.75 * arabicFontScale}rem`,
+      md: `${3.05 * arabicFontScale}rem`,
+    },
+  };
+  const decreaseArabicFontSize = () => {
+    setArabicFontSizeIndex((value) => Math.max(0, value - 1));
+  };
+  const increaseArabicFontSize = () => {
+    setArabicFontSizeIndex((value) => Math.min(ARABIC_FONT_SCALE_STEPS.length - 1, value + 1));
+  };
 
   useEffect(() => {
     document.querySelectorAll('audio').forEach((audioElement) => {
@@ -1534,10 +1590,7 @@ const VerseComponent = ({
     setActiveReadingWordIndex(token.wordIndex);
     readingAudioRef.current.currentTime = seekTime;
     readingAudioRef.current.play().catch(() => {});
-    setSelectedWordPopover({
-      anchorEl: event.currentTarget,
-      word: token.word,
-    });
+    handleWordPopoverClose();
   };
 
   const renderArabicVerseWords = (verseItem) => {
@@ -1634,6 +1687,117 @@ const VerseComponent = ({
     setVerseTafsirDialogOpen(false);
   };
 
+  const renderArabicFontControls = ({ compact = false } = {}) => {
+    const fontSelectId = compact ? 'reading-arabic-font-select' : 'memorization-arabic-font-select';
+    const fontSelectLabelId = `${fontSelectId}-label`;
+
+    return (
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: compact ? 0.35 : 0.5,
+        flexWrap: 'wrap',
+        mb: compact ? 0 : 1.25,
+      }}
+    >
+      <FormControl
+        size="small"
+        sx={{
+          minWidth: compact ? { xs: 142, sm: 174 } : { xs: 170, sm: 200 },
+          '& .MuiInputBase-root': {
+            minHeight: compact ? 30 : 34,
+            backgroundColor: 'rgba(255, 253, 244, 0.86)',
+            border: '1px solid rgba(142, 118, 63, 0.22)',
+            borderRadius: 999,
+            boxShadow: '0 2px 8px rgba(47, 56, 35, 0.08)',
+            '&:hover': {
+              backgroundColor: 'rgba(215, 183, 101, 0.18)',
+            },
+          },
+          '& .MuiInputBase-input': {
+            py: compact ? 0.25 : 0.55,
+            fontSize: compact ? '0.74rem' : '0.82rem',
+            fontWeight: 800,
+            color: '#4f4a33',
+          },
+          '& .MuiInputLabel-root': {
+            fontSize: compact ? '0.74rem' : '0.82rem',
+          },
+        }}
+      >
+        <InputLabel id={fontSelectLabelId}>Font</InputLabel>
+        <Select
+          labelId={fontSelectLabelId}
+          id={fontSelectId}
+          value={arabicFontKey}
+          label="Font"
+          onChange={(event) => setArabicFontKey(event.target.value)}
+          startAdornment={<FontDownloadIcon sx={{ mr: 0.5, color: '#6f7745', fontSize: compact ? 16 : 18 }} />}
+          MenuProps={{
+            disableScrollLock: true,
+            PaperProps: {
+              sx: {
+                mt: 0.5,
+                borderRadius: 2,
+              },
+            },
+          }}
+        >
+          {ARABIC_FONT_OPTIONS.map((item) => (
+            <MenuItem
+              key={item.key}
+              value={item.key}
+              sx={{ fontFamily: item.family }}
+            >
+              {item.label}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      <IconButton
+        aria-label="Arapça fontu küçült"
+        onClick={decreaseArabicFontSize}
+        disabled={arabicFontSizeIndex === 0}
+        sx={{
+          color: '#6f7745',
+          width: compact ? 30 : 34,
+          height: compact ? 30 : 34,
+          backgroundColor: 'rgba(255, 253, 244, 0.86)',
+          border: '1px solid rgba(142, 118, 63, 0.22)',
+          borderRadius: 999,
+          boxShadow: '0 2px 8px rgba(47, 56, 35, 0.08)',
+          '&:hover': {
+            backgroundColor: 'rgba(215, 183, 101, 0.18)',
+          },
+        }}
+      >
+        <TextDecreaseIcon />
+      </IconButton>
+      <IconButton
+        aria-label="Arapça fontu büyüt"
+        onClick={increaseArabicFontSize}
+        disabled={arabicFontSizeIndex === ARABIC_FONT_SCALE_STEPS.length - 1}
+        sx={{
+          color: '#6f7745',
+          width: compact ? 30 : 34,
+          height: compact ? 30 : 34,
+          backgroundColor: 'rgba(255, 253, 244, 0.86)',
+          border: '1px solid rgba(142, 118, 63, 0.22)',
+          borderRadius: 999,
+          boxShadow: '0 2px 8px rgba(47, 56, 35, 0.08)',
+          '&:hover': {
+            backgroundColor: 'rgba(215, 183, 101, 0.18)',
+          },
+        }}
+      >
+        <TextIncreaseIcon />
+      </IconButton>
+    </Box>
+    );
+  };
+
   const getReadingPages = () => {
     const pageMap = new Map();
 
@@ -1690,17 +1854,29 @@ const VerseComponent = ({
     const pages = getReadingPages();
 
     return (
-      <Box sx={{ display: 'grid', gap: 2.5, pb: dataVerse.audio !== undefined ? 7 : 0 }}>
-        <Divider
+      <Box sx={{ display: 'grid', gap: 1.55, mt: { xs: -0.75, sm: -1.25 }, pb: dataVerse.audio !== undefined ? 7 : 0 }}>
+        <Box
           sx={{
+            position: 'relative',
             maxWidth: 1120,
             width: '100%',
             mx: 'auto',
-            '&::before, &::after': {
-              borderColor: 'rgba(142, 118, 63, 0.35)',
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: '1fr auto 1fr' },
+            alignItems: 'center',
+            rowGap: 0.65,
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: { xs: 17, sm: '50%' },
+              borderTop: '1px solid rgba(142, 118, 63, 0.35)',
+              zIndex: 0,
             },
           }}
         >
+          <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
           <Button
             variant="text"
             size="small"
@@ -1719,25 +1895,41 @@ const VerseComponent = ({
               '&:hover': {
                 backgroundColor: 'rgba(215, 183, 101, 0.18)',
               },
+              position: 'relative',
+              zIndex: 1,
+              justifySelf: 'center',
             }}
           >
             Sureyi Dinle
           </Button>
-        </Divider>
+          <Box
+            sx={{
+              position: 'relative',
+              zIndex: 1,
+              justifySelf: { xs: 'center', sm: 'end' },
+            }}
+          >
+            {renderArabicFontControls({ compact: true })}
+          </Box>
+        </Box>
 
         {zeroVerseText && (
-          <Box sx={{ textAlign: 'center', color: '#211b14' }}>
+          <Box sx={{ textAlign: 'center', color: '#211b14', mt: -0.35 }}>
             <Typography
               sx={{
-                fontFamily: 'var(--font-mushaf), Traditional Arabic, serif',
-                fontSize: { xs: '2rem', sm: '2.8rem' },
-                lineHeight: 1.5,
+                fontFamily: selectedArabicFont.family,
+                fontSize: {
+                  xs: `${1.25 * arabicFontScale}rem`,
+                  sm: `${1.65 * arabicFontScale}rem`,
+                  md: `${1.9 * arabicFontScale}rem`,
+                },
+                lineHeight: 1.25,
               }}
             >
               {zeroVerseText}
             </Typography>
             {dataVerse.zero?.transcription && (
-              <Typography sx={{ color: '#4f4a33', fontWeight: 600 }}>
+              <Typography sx={{ color: '#4f4a33', fontWeight: 600, fontSize: { xs: '0.78rem', sm: '0.88rem' } }}>
                 {dataVerse.zero.transcription}
               </Typography>
             )}
@@ -1779,9 +1971,9 @@ const VerseComponent = ({
                 gap: { xs: 0.4, sm: 0.65 },
                 direction: 'rtl',
                 unicodeBidi: 'isolate',
-                fontFamily: 'var(--font-mushaf), Traditional Arabic, serif',
+                fontFamily: selectedArabicFont.family,
                 color: '#111',
-                fontSize: { xs: '2rem', sm: '2.75rem', md: '3.05rem' },
+                fontSize: readingArabicVerseTextSx.fontSize,
                 lineHeight: 1.85,
               }}
             >
@@ -2132,6 +2324,7 @@ const VerseComponent = ({
           </Box>
         )}
         <br />
+        {!readingMode && !gorunum && renderArabicFontControls()}
         {readingMode ? (
           readingView === 'meal' ? renderReadingMeal() : renderReadingArabicPages()
         ) : (
@@ -2146,7 +2339,9 @@ const VerseComponent = ({
         >
           {!gorunum && zeroVerseText && (
             <ArabicVerse key={dataVerse.zero?.id} value={dataVerse.zero?.id}>
-              {zeroVerseText}
+              <Box component="span" sx={{ display: 'inline-block', ...arabicVerseTextSx }}>
+                {zeroVerseText}
+              </Box>
             </ArabicVerse>
           )}
           {hasZeroVerse && (
@@ -2353,6 +2548,7 @@ const VerseComponent = ({
                       alignItems: 'baseline',
                       columnGap: '0.22em',
                       rowGap: '0.08em',
+                      ...arabicVerseTextSx,
                     }}
                   >
                     {renderArabicVerseWords(item)}

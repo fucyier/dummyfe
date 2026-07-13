@@ -14,6 +14,7 @@ const QURAN_FOUNDATION_CONTENT_PROXY_URL = '/api/quran/content/api/v4';
 const QURAN_COM_API_V4_URL = 'https://api.quran.com/api/v4';
 const QURAN_FOUNDATION_VERSES_AUDIO_BASE_URL = 'https://verses.quran.foundation';
 const API_TAFSIR_FALLBACK_BASE_URL = 'https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@main/tafsir';
+const HADEETH_ENC_API_BASE_URL = 'https://hadeethenc.com/api/v1';
 
 const AVAILABLE_AUDIO_IDENTIFIERS = new Set([
   'ar.shaatree',
@@ -600,4 +601,63 @@ export const fetchVerseTafsirs = async (surahId, verseNumber) => {
     console.warn(`Quran Foundation Turkish tafsir lookup failed, using Turkish fallback source: ${error?.message || 'unknown error'}`);
     return fetchFallbackTurkishVerseTafsirs(surahId, verseNumber);
   }
+};
+
+export const fetchHadithCategories = async (language = 'tr') => {
+  const response = await axios.get(`${HADEETH_ENC_API_BASE_URL}/categories/roots/`, {
+    params: { language },
+  });
+
+  return Array.isArray(response.data) ? response.data : [];
+};
+
+export const fetchHadithsByCategory = async ({
+  language = 'tr',
+  categoryId,
+  page = 1,
+  perPage = 20,
+}) => {
+  if (!categoryId) {
+    return {
+      data: [],
+      meta: {
+        current_page: '1',
+        last_page: 1,
+        total_items: 0,
+        per_page: String(perPage),
+      },
+    };
+  }
+
+  const response = await axios.get(`${HADEETH_ENC_API_BASE_URL}/hadeeths/list/`, {
+    params: {
+      language,
+      category_id: categoryId,
+      page,
+      per_page: perPage,
+    },
+  });
+
+  return {
+    data: Array.isArray(response.data?.data) ? response.data.data : [],
+    meta: response.data?.meta || {
+      current_page: String(page),
+      last_page: 1,
+      total_items: 0,
+      per_page: String(perPage),
+    },
+  };
+};
+
+export const fetchHadithDetail = async ({ language = 'tr', id }) => {
+  if (!id) return null;
+
+  const response = await axios.get(`${HADEETH_ENC_API_BASE_URL}/hadeeths/one/`, {
+    params: {
+      language,
+      id,
+    },
+  });
+
+  return response.data || null;
 };

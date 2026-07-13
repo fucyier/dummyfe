@@ -308,12 +308,13 @@ const VerseComponent = ({
   dataVerse,
   dataSurah = [],
   dataAuthor = [],
-  mealDrawerOpenSignal = 0,
   onAuthorChange,
   onSurahNavigate,
 }) => {
   const [audioDrawerOpen, setAudioDrawerOpen] = useState(false);
   const [mealOpen, setMealOpen] = useState(false);
+  const [mealAudioDrawerOpen, setMealAudioDrawerOpen] = useState(false);
+  const [mealAudioPlaying, setMealAudioPlaying] = useState(false);
   const [secilenSound, setSecilenSound] = useState(null);
   const [playbackSpeed, setPlaybackSpeed] = useState(DEFAULT_PLAYBACK_SPEED);
   const [activeVerseId, setActiveVerseId] = useState(null);
@@ -347,10 +348,11 @@ const VerseComponent = ({
     anchorEl: null,
     word: null,
   });
-  const lastMealDrawerOpenSignalRef = useRef(mealDrawerOpenSignal);
   const wordAudioRef = useRef(null);
   const wordAudioPlayTokenRef = useRef(0);
   const readingAudioRef = useRef(null);
+  const mealAudioRef = useRef(null);
+  const memorizationArabicAreaRef = useRef(null);
   const verseCount = dataVerse?.verse_count || dataVerse?.verses?.length || 0;
   const selectedAudio = normalizeAudioOption(audio);
   const isMp3QuranAudio = selectedAudio?.source === 'mp3quran';
@@ -385,14 +387,7 @@ const VerseComponent = ({
     document.querySelectorAll('audio').forEach((audioElement) => {
       audioElement.playbackRate = playbackSpeed;
     });
-  }, [playbackSpeed, audioDrawerOpen, mealOpen, secilenSound, dataVerse?.audio?.mp3, audioPlayerSrc]);
-
-  useEffect(() => {
-    if (mealDrawerOpenSignal > lastMealDrawerOpenSignalRef.current) {
-      setMealOpen(true);
-    }
-    lastMealDrawerOpenSignalRef.current = mealDrawerOpenSignal;
-  }, [mealDrawerOpenSignal]);
+  }, [playbackSpeed, audioDrawerOpen, mealAudioPlaying, secilenSound, dataVerse?.audio?.mp3, audioPlayerSrc]);
 
   useEffect(() => {
     if (!selectedWordPopover.anchorEl) return undefined;
@@ -459,6 +454,11 @@ const VerseComponent = ({
   }, [surah, selectedAudio?.id, selectedAudio?.identifier]);
 
   useEffect(() => {
+    stopMealAudio(true);
+    setMealAudioDrawerOpen(false);
+  }, [surah, author, dataVerse?.audio?.mp3]);
+
+  useEffect(() => {
     if (!readingSurahPlaybackActive || !activeVerseId || !readingMode) return;
 
     scheduleVerseScrollToTop(activeVerseId, { extraOffset: 72 });
@@ -515,6 +515,19 @@ const VerseComponent = ({
     setCurrentVerseRepeat(1);
   };
 
+  const stopMealAudio = (resetTime = false, closeDrawer = false) => {
+    if (mealAudioRef.current) {
+      mealAudioRef.current.pause();
+      if (resetTime) {
+        mealAudioRef.current.currentTime = 0;
+      }
+    }
+    setMealAudioPlaying(false);
+    if (closeDrawer) {
+      setMealAudioDrawerOpen(false);
+    }
+  };
+
   const handleConfigDrawerClose = () => {
     setConfigDrawerOpen(false);
     resetLessonSettings();
@@ -569,6 +582,7 @@ const VerseComponent = ({
       }
 
       setConfigDrawerOpen(false);
+      setMealAudioDrawerOpen(false);
       setAudioDrawerOpen(true);
       setLessonMode(false);
       setConfigPlaybackActive(false);
@@ -593,6 +607,7 @@ const VerseComponent = ({
     try {
       const firstSound = await loadSelectedAyahAudio(firstVerseId);
       setConfigDrawerOpen(false);
+      setMealAudioDrawerOpen(false);
       setAudioDrawerOpen(true);
       setLessonMode(true);
       setConfigPlaybackActive(true);
@@ -1141,7 +1156,8 @@ const VerseComponent = ({
             backgroundColor="#54613d"
             onEnd={async () => {
             if (isMp3QuranAudio && loopLesson) {
-              setAudioDrawerOpen(true);
+              setMealAudioDrawerOpen(false);
+      setAudioDrawerOpen(true);
               setSecilenSound(`surah-${surah}`);
               setActiveVerseId(null);
               setCurrentVerseRepeat(1);
@@ -1152,7 +1168,8 @@ const VerseComponent = ({
             if (arabicPanelPlaybackVerseId && arabicVerseLoopIds[arabicPanelPlaybackVerseId]) {
               try {
                 const replaySound = await loadSelectedAyahAudio(arabicPanelPlaybackVerseId);
-                setAudioDrawerOpen(true);
+                setMealAudioDrawerOpen(false);
+      setAudioDrawerOpen(true);
                 setSecilenSound(replaySound);
                 setActiveVerseId(arabicPanelPlaybackVerseId);
                 setAudioReplayKey((prevKey) => prevKey + 1);
@@ -1200,7 +1217,8 @@ const VerseComponent = ({
               const nextVerseId = String(nextVerse.id);
               try {
                 const nextSound = await loadSelectedAyahAudio(nextVerseId);
-                setAudioDrawerOpen(true);
+                setMealAudioDrawerOpen(false);
+      setAudioDrawerOpen(true);
                 setSecilenSound(nextSound);
                 setActiveVerseId(nextVerseId);
                 setCurrentVerseRepeat(1);
@@ -1227,7 +1245,8 @@ const VerseComponent = ({
                 const firstVerseId = String(firstVerse.id);
                 try {
                   const firstSound = await loadSelectedAyahAudio(firstVerseId);
-                  setAudioDrawerOpen(true);
+                  setMealAudioDrawerOpen(false);
+      setAudioDrawerOpen(true);
                   setSecilenSound(firstSound);
                   setActiveVerseId(firstVerseId);
                   setCurrentVerseRepeat(1);
@@ -1296,7 +1315,8 @@ const VerseComponent = ({
   const startSelectedAyahAudio = async (verseId) => {
     const nextSound = await loadSelectedAyahAudio(verseId);
 
-    setAudioDrawerOpen(true);
+    setMealAudioDrawerOpen(false);
+      setAudioDrawerOpen(true);
     setLessonMode(true);
     setArabicPanelPlaybackVerseId(null);
     setSecilenSound(nextSound);
@@ -1337,6 +1357,7 @@ const VerseComponent = ({
     try {
       const nextSound = await loadSelectedAyahAudio(verseId);
 
+      setMealAudioDrawerOpen(false);
       setAudioDrawerOpen(true);
       setLessonMode(false);
       setArabicPanelPlaybackVerseId(verseKey);
@@ -1369,6 +1390,7 @@ const VerseComponent = ({
       }
 
       resetLessonSettings();
+      setMealAudioDrawerOpen(false);
       setAudioDrawerOpen(true);
       setLessonMode(false);
       setSecilenSound(`surah-${surah}`);
@@ -1423,9 +1445,11 @@ const VerseComponent = ({
     resetLessonSettings();
     setArabicPanelPlaybackVerseId(null);
     setArabicPanelLoadingVerseId(null);
+    stopMealAudio(false, true);
 
     if (readingSurahAudio?.audioUrl) {
       setReadingSurahPlaybackActive(true);
+      setMealAudioDrawerOpen(false);
       setAudioDrawerOpen(true);
       setLessonMode(false);
       updateReadingSurahPosition(readingSurahResumeTime);
@@ -1464,6 +1488,7 @@ const VerseComponent = ({
       setReadingSurahResumeTime(0);
       setReadingSurahPlaybackActive(true);
       setActiveReadingWordIndex(null);
+      setMealAudioDrawerOpen(false);
       setAudioDrawerOpen(true);
       setLessonMode(false);
       setSecilenSound(nextReadingAudio.audioUrl);
@@ -1478,6 +1503,44 @@ const VerseComponent = ({
     }
   };
 
+  const handleReadingMealAudioClick = () => {
+    if (!dataVerse?.audio?.mp3) {
+      toast.error('Türkçe meal seslendirmesi bulunamadı.');
+      return;
+    }
+
+    if (mealAudioPlaying && mealAudioRef.current) {
+      mealAudioRef.current.pause();
+      setMealAudioPlaying(false);
+      return;
+    }
+
+    if (audioDrawerOpen) {
+      handleAudioDrawerClose();
+    }
+
+    setReadingSurahPlaybackActive(false);
+    setReadingSurahResumeTime(0);
+    setActiveReadingWordIndex(null);
+    setArabicPanelPlaybackVerseId(null);
+    setArabicPanelLoadingVerseId(null);
+    setActiveVerseId(null);
+    setSecilenSound(null);
+    setMealAudioDrawerOpen(true);
+
+    window.setTimeout(() => {
+      const audioElement = mealAudioRef.current;
+      if (!audioElement) return;
+
+      audioElement.playbackRate = playbackSpeed;
+      audioElement.play()
+        .then(() => setMealAudioPlaying(true))
+        .catch(() => {
+          setMealAudioPlaying(false);
+          toast.error('Türkçe meal sesi başlatılamadı.');
+        });
+    }, 0);
+  };
   const stopActiveWordAudio = () => {
     if (wordAudioRef.current) {
       wordAudioRef.current.pause();
@@ -2077,7 +2140,7 @@ const VerseComponent = ({
   };
 
   const renderReadingMeal = () => (
-    <Box sx={{ display: 'grid', gap: 2.5, pb: dataVerse.audio !== undefined ? 7 : 0 }}>
+    <Box sx={{ display: 'grid', gap: 2.5, pb: 2 }}>
       <Divider
         sx={{
           maxWidth: 1120,
@@ -2097,6 +2160,7 @@ const VerseComponent = ({
             border: '1px solid rgba(142, 118, 63, 0.22)',
             borderRadius: 999,
             boxShadow: '0 2px 8px rgba(47, 56, 35, 0.08)',
+            fontFamily: '"Segoe UI", Arial, sans-serif',
             px: 0.5,
             py: 0.15,
           }}
@@ -2110,6 +2174,7 @@ const VerseComponent = ({
               minHeight: 30,
               px: 1,
               color: '#6f7745',
+              fontFamily: '"Segoe UI", Arial, sans-serif',
               fontWeight: 900,
               textTransform: 'none',
               borderRadius: 999,
@@ -2118,13 +2183,14 @@ const VerseComponent = ({
               },
             }}
           >
-            Sureyi Dinle
+            Sureyi Dinle (Arapça)
           </Button>
           <Typography
             component="span"
             sx={{
-              pr: 1,
+              px: 0.75,
               color: '#6f5a22',
+              fontFamily: '"Segoe UI", Arial, sans-serif',
               fontWeight: 900,
               fontSize: { xs: '0.78rem', sm: '0.9rem' },
               whiteSpace: 'nowrap',
@@ -2132,6 +2198,30 @@ const VerseComponent = ({
           >
             {selectedAuthor?.name ? `${selectedAuthor.name} meali` : 'Meal'}
           </Typography>
+          <Button
+            variant="text"
+            size="small"
+            startIcon={mealAudioPlaying ? <PauseIcon /> : <PlayArrowIcon />}
+            onClick={handleReadingMealAudioClick}
+            disabled={!dataVerse?.audio?.mp3}
+            sx={{
+              minHeight: 30,
+              px: 1,
+              color: '#6f7745',
+              fontFamily: '"Segoe UI", Arial, sans-serif',
+              fontWeight: 900,
+              textTransform: 'none',
+              borderRadius: 999,
+              '&:hover': {
+                backgroundColor: 'rgba(215, 183, 101, 0.18)',
+              },
+              '&.Mui-disabled': {
+                color: 'rgba(111, 119, 69, 0.42)',
+              },
+            }}
+          >
+            Sureyi Dinle (Türkçe)
+          </Button>
         </Box>
       </Divider>
 
@@ -2146,42 +2236,99 @@ const VerseComponent = ({
           backgroundColor: 'rgba(255, 253, 244, 0.92)',
           border: '1px solid rgba(142, 118, 63, 0.18)',
           boxShadow: '0 8px 24px rgba(47, 56, 35, 0.08)',
-          pb: dataVerse.audio !== undefined ? 7 : 2.5,
+          pb: 2.5,
           textAlign: 'left',
         }}
       >
+        <Box sx={{ display: 'grid' }}>
         {(dataVerse?.verses || []).map((item, index) => {
           const isMealActiveVerse = Boolean(activeVerseId) && activeVerseId === String(item.id);
 
           return (
-            <Typography
-              key={item.id}
-              id={`verse-${item.id}`}
-              component="span"
-              sx={{
-                display: 'inline',
-                color: isMealActiveVerse ? '#2f3a21' : '#211b14',
-                fontWeight: isMealActiveVerse ? 800 : 500,
-                fontSize: { xs: '1.15rem', sm: '1.42rem' },
-                lineHeight: 1.85,
-                backgroundColor: isMealActiveVerse ? 'rgba(84, 97, 61, 0.2)' : 'transparent',
-                borderRadius: 0.75,
-                boxShadow: isMealActiveVerse ? '0 0 0 3px rgba(84, 97, 61, 0.1)' : 'none',
-                transition: 'background-color 120ms ease, color 120ms ease, box-shadow 120ms ease',
-              }}
-            >
-              <Box component="span" sx={{ fontWeight: 900 }}>
-                {item.verse_number}.
+            <Box key={item.id}>
+              <Box
+                id={`verse-${item.id}`}
+                sx={{
+                  px: { xs: 0.25, sm: 0.5 },
+                  py: { xs: 1, sm: 1.15 },
+                  borderRadius: 0.75,
+                  backgroundColor: isMealActiveVerse ? 'rgba(84, 97, 61, 0.14)' : 'transparent',
+                  transition: 'background-color 120ms ease, color 120ms ease',
+                }}
+              >
+                <Typography
+                  sx={{
+                    color: isMealActiveVerse ? '#2f3a21' : '#211b14',
+                    fontWeight: isMealActiveVerse ? 800 : 500,
+                    fontSize: { xs: '1.05rem', sm: '1.22rem' },
+                    lineHeight: 1.65,
+                    textAlign: 'left',
+                  }}
+                >
+                  <Box component="span" sx={{ fontWeight: 900, mr: 0.75 }}>
+                    {item.verse_number}.
+                  </Box>
+                  {item.translation?.text || ''}
+                </Typography>
               </Box>
-              {` ${item.translation?.text || ''}${index < (dataVerse?.verses?.length || 0) - 1 ? ' ' : ''}`}
-            </Typography>
+              {index < (dataVerse?.verses?.length || 0) - 1 && (
+                <Divider sx={{ borderColor: 'rgba(142, 118, 63, 0.16)' }} />
+              )}
+            </Box>
           );
         })}
+        </Box>
       </Paper>
     </Box>
   );
 
   const isActiveVerse = (verseId) => audioDrawerOpen && activeVerseId === String(verseId);
+  const memorizationArabicAyahAudioActive = (
+    !readingMode
+    && !gorunum
+    && audioDrawerOpen
+    && !readingSurahPlaybackActive
+    && Boolean(activeVerseId || arabicPanelPlaybackVerseId)
+  );
+
+  const isMemorizationArabicBlankTarget = (target) => {
+    if (!(target instanceof Element)) return;
+
+    const interactiveTarget = target.closest(
+      'button, a, input, textarea, select, [role="button"], [role="switch"], [role="combobox"], .MuiPopover-root, .MuiPopper-root, .MuiDrawer-root',
+    );
+    const verseCardTarget = target.closest('[data-arabic-verse-card="true"]');
+    const actionTarget = target.closest('[data-arabic-verse-actions="true"]');
+
+    return !interactiveTarget && !verseCardTarget && !actionTarget;
+  };
+
+  const handleMemorizationArabicBlankClick = (event) => {
+    if (!memorizationArabicAyahAudioActive) return;
+    if (!isMemorizationArabicBlankTarget(event.target)) return;
+
+    handleAudioDrawerClose();
+  };
+
+  useEffect(() => {
+    if (!memorizationArabicAyahAudioActive) return undefined;
+
+    const handleDocumentPointerDown = (event) => {
+      const area = memorizationArabicAreaRef.current;
+      const target = event.target;
+
+      if (!area || !(target instanceof Node) || !area.contains(target)) return;
+      if (!isMemorizationArabicBlankTarget(target)) return;
+
+      handleAudioDrawerClose();
+    };
+
+    document.addEventListener('pointerdown', handleDocumentPointerDown, true);
+
+    return () => {
+      document.removeEventListener('pointerdown', handleDocumentPointerDown, true);
+    };
+  }, [memorizationArabicAyahAudioActive]);
 
   return (
     <>
@@ -2328,6 +2475,11 @@ const VerseComponent = ({
         {readingMode ? (
           readingView === 'meal' ? renderReadingMeal() : renderReadingArabicPages()
         ) : (
+        <Box
+          ref={!gorunum ? memorizationArabicAreaRef : null}
+          onClickCapture={handleMemorizationArabicBlankClick}
+          sx={{ minHeight: 1 }}
+        >
         <Stack
           direction="column"
           spacing={gorunum ? 0.75 : 2}
@@ -2338,7 +2490,7 @@ const VerseComponent = ({
           }}
         >
           {!gorunum && zeroVerseText && (
-            <ArabicVerse key={dataVerse.zero?.id} value={dataVerse.zero?.id}>
+            <ArabicVerse key={dataVerse.zero?.id} value={dataVerse.zero?.id} data-arabic-verse-card="true">
               <Box component="span" sx={{ display: 'inline-block', ...arabicVerseTextSx }}>
                 {zeroVerseText}
               </Box>
@@ -2404,6 +2556,7 @@ const VerseComponent = ({
               {!gorunum && (
                 <Box
                   id={`verse-actions-${item.id}`}
+                  data-arabic-verse-actions="true"
                   sx={{
                     display: 'flex',
                     justifyContent: 'flex-start',
@@ -2526,6 +2679,7 @@ const VerseComponent = ({
               {!gorunum && (
                 <ArabicVerse
                   id={`verse-${item.id}`}
+                  data-arabic-verse-card="true"
                   value={item.id}
                   sx={{
                     position: 'relative',
@@ -2611,6 +2765,7 @@ const VerseComponent = ({
             );
           })}
         </Stack>
+        </Box>
         )}
         <Drawer
           anchor="bottom"
@@ -2718,6 +2873,11 @@ const VerseComponent = ({
             anchor="right"
             open={configDrawerOpen}
             onClose={handleConfigDrawerClose}
+            transitionDuration={{ enter: 120, exit: 90 }}
+            ModalProps={{
+              keepMounted: true,
+              disableScrollLock: true,
+            }}
           >
             {configDrawerContent}
           </Drawer>
@@ -2746,7 +2906,7 @@ const VerseComponent = ({
         </Fab>
       )}
 
-      {dataVerse.audio !== undefined && (
+      {false && dataVerse.audio !== undefined && (
         <AppBar
           position="fixed"
           style={{ top: 'auto', bottom: 0 }}
@@ -2888,9 +3048,85 @@ const VerseComponent = ({
         </DialogContent>
       </Dialog>
 
-      <Drawer anchor="bottom" open={mealOpen} onClose={() => setMealOpen(false)}>
-        {mealDrawerContent}
+      <Drawer
+        anchor="bottom"
+        open={mealAudioDrawerOpen}
+        onClose={() => stopMealAudio(false, true)}
+        hideBackdrop
+        sx={{
+          pointerEvents: 'none',
+          '& .MuiDrawer-paper': {
+            pointerEvents: 'auto',
+          },
+        }}
+        ModalProps={{
+          keepMounted: true,
+          disableScrollLock: true,
+          disableAutoFocus: true,
+          disableEnforceFocus: true,
+          disableRestoreFocus: true,
+        }}
+        PaperProps={{
+          sx: {
+            backgroundColor: '#54613d',
+            color: '#fff8d9',
+            borderTop: '1px solid rgba(142, 118, 63, 0.35)',
+            boxShadow: '0 -2px 10px rgba(47, 56, 35, 0.22)',
+          },
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            width: '100%',
+            maxWidth: '100vw',
+            boxSizing: 'border-box',
+            px: { xs: 1, sm: 1.5 },
+            py: 0.75,
+          }}
+        >
+          <Typography
+            sx={{
+              flex: '0 0 auto',
+              display: { xs: 'none', sm: 'block' },
+              color: '#fff8d9',
+              fontFamily: '"Segoe UI", Arial, sans-serif',
+              fontWeight: 900,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Türkçe Meal
+          </Typography>
+          <Box
+            component="audio"
+            ref={mealAudioRef}
+            src={dataVerse?.audio?.mp3 || undefined}
+            controls
+            onPlay={() => setMealAudioPlaying(true)}
+            onPause={() => setMealAudioPlaying(false)}
+            onEnded={() => {
+              setMealAudioPlaying(false);
+              setMealAudioDrawerOpen(false);
+              if (mealAudioRef.current) {
+                mealAudioRef.current.currentTime = 0;
+              }
+            }}
+            sx={{
+              flex: '1 1 auto',
+              minWidth: 0,
+              height: 38,
+              display: 'block',
+            }}
+          />
+          {renderPlaybackSpeedControl('meal-audio-drawer-speed-label')}
+        </Box>
       </Drawer>
+
+      {false && <Drawer anchor="bottom" open={mealOpen} onClose={() => setMealOpen(false)}>
+        {mealDrawerContent}
+      </Drawer>}
     </>
   );
 };

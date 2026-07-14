@@ -6,9 +6,16 @@ import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 
 const navItems = [
-  { key: 'quran', label: 'Kur’an' },
+  { key: 'quran', label: 'Kur’an Ezberle' },
+  { key: 'sureler', label: 'Sureler' },
   { key: 'hadis', label: 'Hadis' },
 ];
+
+const pagePaths = {
+  quran: '/',
+  sureler: '/sureler',
+  hadis: '/hadis',
+};
 
 const NavBarComponent = ({ activePage = 'quran', onPageChange }) => {
   const handlePageChange = (event, page) => {
@@ -16,9 +23,9 @@ const NavBarComponent = ({ activePage = 'quran', onPageChange }) => {
     if (page === 'quran') {
       window.location.assign('/');
       return;
-    } else if (page === 'hadis') {
-      window.history.pushState({}, '', '#hadis');
     }
+
+    window.history.pushState({}, '', pagePaths[page] || '/');
     onPageChange?.(page);
   };
 
@@ -90,7 +97,7 @@ const NavBarComponent = ({ activePage = 'quran', onPageChange }) => {
                 return (
                   <Button
                     key={item.key}
-                    href={item.key === 'quran' ? '/' : '#hadis'}
+                    href={pagePaths[item.key] || '/'}
                     onClick={(event) => handlePageChange(event, item.key)}
                     sx={{
                       minHeight: 30,

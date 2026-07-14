@@ -271,7 +271,7 @@ const scrollPageToTop = () => {
   window.scrollTo(options);
 };
 
-const BarComponent = () => {
+const BarComponent = ({ contentOverride = null }) => {
   const controlsRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [verseLoading, setVerseLoading] = useState(false);
@@ -409,7 +409,30 @@ const getVerseList =function (surahId,authorId, options = {}){
       return;
     }
        updateSurahPath(newValue);
+       if (contentOverride && author === 0) {
+         setAuthor(DEFAULT_AUTHOR_ID);
+         getVerseList(selectedSurah, DEFAULT_AUTHOR_ID);
+         return;
+       }
        getVerseList(selectedSurah,author);
+  };
+
+   const handleSurePageSelectSurah = (newValue) => {
+    const selectedSurah = newValue?.id || 0;
+    const selectedAuthor = author || DEFAULT_AUTHOR_ID;
+    scrollPageToTop();
+    setSurah(selectedSurah);
+    if (selectedSurah === 0) {
+      setDataVerse([]);
+      setVerseLoading(false);
+      return;
+    }
+
+    if (author === 0) {
+      setAuthor(DEFAULT_AUTHOR_ID);
+    }
+
+    getVerseList(selectedSurah, selectedAuthor);
   };
 
    const handleChangeAuthor = (newValue) => {
@@ -439,6 +462,20 @@ const getVerseList =function (surahId,authorId, options = {}){
   };
 
   const gorunum = viewMode === 'memorization' && memorizationView === 'latin';
+  const availableAudioOptions = contentOverride
+    ? dataAudio.filter(item => item.audioType === 'ayah')
+    : dataAudio;
+  const selectedAudioOption = availableAudioOptions.find(item => item.id === audio) || null;
+
+  useEffect(() => {
+    if (!contentOverride || dataAudio.length === 0) return;
+    const currentAudio = dataAudio.find(item => item.id === audio);
+    if (!currentAudio || currentAudio.audioType === 'ayah') return;
+
+    const defaultAyahAudio = dataAudio.find(item => item.id === DEFAULT_AUDIO_IDENTIFIER && item.audioType === 'ayah')
+      || dataAudio.find(item => item.audioType === 'ayah');
+    setAudio(defaultAyahAudio?.id || '');
+  }, [contentOverride, dataAudio, audio]);
 
   const handleReadingViewChange = (nextReadingView) => {
     if (nextReadingView === 'meal' && author === 0) {
@@ -495,7 +532,7 @@ const getVerseList =function (surahId,authorId, options = {}){
               ref={controlsRef}
               sx={{
                 position: 'fixed',
-                top: { xs: 0, sm: 48 },
+                top: 48,
                 left: 0,
                 right: 0,
                 zIndex: 1090,
@@ -611,8 +648,8 @@ const getVerseList =function (surahId,authorId, options = {}){
                   openOnFocus
                   slotProps={compactAutocompleteSlotProps}
                   disabled={surah === 0}
-                  options={dataAudio}
-                  value={dataAudio.find(item => item.id === audio) || null}
+                  options={availableAudioOptions}
+                  value={selectedAudioOption}
                   groupBy={(option) => option.sourceLabel || 'Diger'}
                   getOptionLabel={(option) => `${option.isKaabaImam ? '🕋 ' : ''}${option.englishName || ""}`}
                   isOptionEqualToValue={(option, value) => option.id === value.id}
@@ -640,7 +677,7 @@ const getVerseList =function (surahId,authorId, options = {}){
                   )}
                 />
               </FormControl>
-              <Box sx={{ flex: '0 0 auto', ml: { xs: 0, sm: 1 } }}>
+              {!contentOverride && <Box sx={{ flex: '0 0 auto', ml: { xs: 0, sm: 1 } }}>
                 <ViewTabs
                   disabled={surah === 0}
                   viewMode={viewMode}
@@ -650,13 +687,28 @@ const getVerseList =function (surahId,authorId, options = {}){
                   readingView={readingView}
                   onReadingViewChange={handleReadingViewChange}
                 />
-              </Box>
+              </Box>}
             </Box>
         )}
 
         {!loading && <Box sx={{ height: controlsHeight + 2 }} />}
-        {!loading && verseLoading && <LoadingState />}
-        {!loading && !verseLoading && surah === 0 && (
+        {!loading && contentOverride && (
+          typeof contentOverride === 'function'
+            ? contentOverride({
+              dataSurah,
+              dataAuthor,
+              dataAudio: availableAudioOptions,
+              surah,
+              author,
+              audio: selectedAudioOption,
+              selectedAuthor: dataAuthor.find(item => item.id === author) || null,
+              controlsHeight,
+              onSurahChange: handleSurePageSelectSurah,
+            })
+            : contentOverride
+        )}
+        {!loading && !contentOverride && verseLoading && <LoadingState />}
+        {!loading && !contentOverride && !verseLoading && surah === 0 && (
           <>
           <Paper
             elevation={2}
@@ -742,7 +794,7 @@ const getVerseList =function (surahId,authorId, options = {}){
             </Typography>
           </>
         )}
-        {!loading && !verseLoading && surah !== 0 && (
+        {!loading && !contentOverride && !verseLoading && surah !== 0 && (
           <VerseComponent
             key={surah}
             surah={surah}

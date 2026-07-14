@@ -77,7 +77,7 @@ const VerseEndMark = styled('span')({
   },
 });
 
-const QURAN_ANNOTATION_MARKS_REGEX = /[\u0610-\u061a\u06d6-\u06ed\u25cc]/g;
+const QURAN_ANNOTATION_MARKS_REGEX = /[\u0610-\u061a\u06d4\u06d6-\u06ed\u25cc]/g;
 
 const formatArabicVerse = (text) => (
   text
@@ -352,7 +352,7 @@ const VerseComponent = ({
   const wordAudioPlayTokenRef = useRef(0);
   const readingAudioRef = useRef(null);
   const mealAudioRef = useRef(null);
-  const memorizationArabicAreaRef = useRef(null);
+  const memorizationAreaRef = useRef(null);
   const verseCount = dataVerse?.verse_count || dataVerse?.verses?.length || 0;
   const selectedAudio = normalizeAudioOption(audio);
   const isMp3QuranAudio = selectedAudio?.source === 'mp3quran';
@@ -2283,42 +2283,40 @@ const VerseComponent = ({
   );
 
   const isActiveVerse = (verseId) => audioDrawerOpen && activeVerseId === String(verseId);
-  const memorizationArabicAyahAudioActive = (
+  const memorizationAyahAudioActive = (
     !readingMode
-    && !gorunum
     && audioDrawerOpen
     && !readingSurahPlaybackActive
     && Boolean(activeVerseId || arabicPanelPlaybackVerseId)
   );
 
-  const isMemorizationArabicBlankTarget = (target) => {
+  const isMemorizationBlankTarget = (target) => {
     if (!(target instanceof Element)) return;
 
     const interactiveTarget = target.closest(
       'button, a, input, textarea, select, [role="button"], [role="switch"], [role="combobox"], .MuiPopover-root, .MuiPopper-root, .MuiDrawer-root',
     );
-    const verseCardTarget = target.closest('[data-arabic-verse-card="true"]');
-    const actionTarget = target.closest('[data-arabic-verse-actions="true"]');
+    const verseCardTarget = target.closest('[data-memorization-verse-card="true"]');
+    const actionTarget = target.closest('[data-memorization-verse-actions="true"]');
 
     return !interactiveTarget && !verseCardTarget && !actionTarget;
   };
 
-  const handleMemorizationArabicBlankClick = (event) => {
-    if (!memorizationArabicAyahAudioActive) return;
-    if (!isMemorizationArabicBlankTarget(event.target)) return;
+  const handleMemorizationBlankClick = (event) => {
+    if (!memorizationAyahAudioActive) return;
+    if (!isMemorizationBlankTarget(event.target)) return;
 
     handleAudioDrawerClose();
   };
 
   useEffect(() => {
-    if (!memorizationArabicAyahAudioActive) return undefined;
+    if (!memorizationAyahAudioActive) return undefined;
 
     const handleDocumentPointerDown = (event) => {
-      const area = memorizationArabicAreaRef.current;
       const target = event.target;
 
-      if (!area || !(target instanceof Node) || !area.contains(target)) return;
-      if (!isMemorizationArabicBlankTarget(target)) return;
+      if (!(target instanceof Element)) return;
+      if (!isMemorizationBlankTarget(target)) return;
 
       handleAudioDrawerClose();
     };
@@ -2328,7 +2326,7 @@ const VerseComponent = ({
     return () => {
       document.removeEventListener('pointerdown', handleDocumentPointerDown, true);
     };
-  }, [memorizationArabicAyahAudioActive]);
+  }, [memorizationAyahAudioActive]);
 
   return (
     <>
@@ -2476,8 +2474,8 @@ const VerseComponent = ({
           readingView === 'meal' ? renderReadingMeal() : renderReadingArabicPages()
         ) : (
         <Box
-          ref={!gorunum ? memorizationArabicAreaRef : null}
-          onClickCapture={handleMemorizationArabicBlankClick}
+          ref={memorizationAreaRef}
+          onClickCapture={handleMemorizationBlankClick}
           sx={{ minHeight: 1 }}
         >
         <Stack
@@ -2490,7 +2488,7 @@ const VerseComponent = ({
           }}
         >
           {!gorunum && zeroVerseText && (
-            <ArabicVerse key={dataVerse.zero?.id} value={dataVerse.zero?.id} data-arabic-verse-card="true">
+            <ArabicVerse key={dataVerse.zero?.id} value={dataVerse.zero?.id} data-memorization-verse-card="true">
               <Box component="span" sx={{ display: 'inline-block', ...arabicVerseTextSx }}>
                 {zeroVerseText}
               </Box>
@@ -2556,7 +2554,7 @@ const VerseComponent = ({
               {!gorunum && (
                 <Box
                   id={`verse-actions-${item.id}`}
-                  data-arabic-verse-actions="true"
+                  data-memorization-verse-actions="true"
                   sx={{
                     display: 'flex',
                     justifyContent: 'flex-start',
@@ -2679,7 +2677,7 @@ const VerseComponent = ({
               {!gorunum && (
                 <ArabicVerse
                   id={`verse-${item.id}`}
-                  data-arabic-verse-card="true"
+                  data-memorization-verse-card="true"
                   value={item.id}
                   sx={{
                     position: 'relative',
@@ -2712,6 +2710,7 @@ const VerseComponent = ({
               )}
               <div
                 id={gorunum ? `verse-${item.id}` : `tr${item.id}`}
+                data-memorization-verse-card="true"
                 style={{
                   display: 'flex',
                   justifyContent: gorunum ? 'flex-start' : 'flex-end',

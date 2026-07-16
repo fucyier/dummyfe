@@ -328,9 +328,77 @@ const fetchQuranFoundationChapterWords = async (surahId) => {
   return verseWordsByNumber;
 };
 
+const getQuranFoundationJuzWordsPage = async (juzNumber, page) => {
+  const endpointPath = `/verses/by_juz/${juzNumber}`;
+  const requestConfig = {
+    params: {
+      language: 'tr',
+      words: 'true',
+      word_fields: 'text_uthmani,text_imlaei,audio_url,translation,transliteration,char_type_name,line_number,page_number,v1_page,v2_page',
+      fields: 'verse_key,page_number,juz_number',
+      per_page: 50,
+      page,
+    },
+  };
+
+  try {
+    const response = await axios.get(`${QURAN_FOUNDATION_CONTENT_PROXY_URL}${endpointPath}`, requestConfig);
+    if (!Array.isArray(response.data?.verses)) {
+      throw new Error('Quran Foundation proxy returned no juz verses.');
+    }
+
+    return response.data;
+  } catch (error) {
+    console.debug(`Quran Foundation juz lookup failed, using Quran.com public fallback: ${error?.message || 'unknown error'}`);
+    const response = await axios.get(`${QURAN_COM_API_V4_URL}${endpointPath}`, requestConfig);
+    return response.data;
+  }
+};
+
+export const fetchQuranFoundationJuzVerses = async (juzNumber) => {
+  if (!juzNumber) return [];
+
+  const firstPage = await getQuranFoundationJuzWordsPage(juzNumber, 1);
+  const totalPages = firstPage.pagination?.total_pages || 1;
+  const pages = [firstPage];
+
+  for (let page = 2; page <= totalPages; page += 1) {
+    pages.push(await getQuranFoundationJuzWordsPage(juzNumber, page));
+  }
+
+  return pages
+    .flatMap(page => page.verses || [])
+    .map((verse) => {
+      const [surahIdText, verseNumberText] = String(verse.verse_key || '').split(':');
+      const surahId = Number(surahIdText);
+      const verseNumber = Number(verseNumberText || verse.verse_number);
+      const words = (verse.words || [])
+        .filter(word => (!word.char_type_name || word.char_type_name === 'word') && (word.text_uthmani || word.text_imlaei))
+        .map((word, index) => normalizeQuranFoundationWord(word, surahId, verseNumber, index));
+
+      return {
+        ...verse,
+        surahId,
+        verse_number: verseNumber,
+        quranFoundationWords: words,
+      };
+    });
+};
+
 const getQuranFoundationAudioUrlFromResponse = (response) => (
   normalizeQuranFoundationAudioUrl(response.data?.audio_files?.[0]?.url)
 );
+
+const getQuranFoundationAudioFileFromResponse = (response) => {
+  const audioFile = response.data?.audio_files?.[0] || response.data?.audio_file || response.data;
+  const audioUrl = normalizeQuranFoundationAudioUrl(audioFile?.url || audioFile?.audio_url);
+
+  return {
+    audioUrl,
+    segments: audioFile?.segments || audioFile?.timestamps || audioFile?.verse_timings || [],
+    verseKey: audioFile?.verse_key,
+  };
+};
 
 export const fetchQuranFoundationChapterAudio = async (recitationId, surahId) => {
   const chapterReciterId = Number(recitationId);
@@ -364,35 +432,41 @@ export const fetchQuranFoundationChapterAudio = async (recitationId, surahId) =>
 };
 
 export const fetchQuranFoundationAyahAudioUrl = async (recitationId, surahId, verseNumber) => {
+  const audioFile = await fetchQuranFoundationAyahAudio(recitationId, surahId, verseNumber);
+
+  return audioFile.audioUrl;
+};
+
+export const fetchQuranFoundationAyahAudio = async (recitationId, surahId, verseNumber) => {
   if (!recitationId || !surahId || !verseNumber) return '';
 
   const endpointPath = `/recitations/${recitationId}/by_ayah/${surahId}:${verseNumber}`;
   const requestConfig = {
     params: {
-      fields: 'url,verse_key',
+      fields: 'url,verse_key,segments',
       per_page: 1,
     },
   };
 
   try {
     const response = await axios.get(`${QURAN_FOUNDATION_CONTENT_PROXY_URL}${endpointPath}`, requestConfig);
-    const audioUrl = getQuranFoundationAudioUrlFromResponse(response);
+    const audioFile = getQuranFoundationAudioFileFromResponse(response);
 
-    if (!audioUrl) {
+    if (!audioFile.audioUrl) {
       throw new Error('Quran Foundation proxy returned no audio URL.');
     }
 
-    return audioUrl;
+    return audioFile;
   } catch (error) {
     console.debug(`Quran Foundation ayah audio lookup failed, using Quran.com public fallback: ${error?.message || 'unknown error'}`);
     const response = await axios.get(`${QURAN_COM_API_V4_URL}${endpointPath}`, requestConfig);
-    const audioUrl = getQuranFoundationAudioUrlFromResponse(response);
+    const audioFile = getQuranFoundationAudioFileFromResponse(response);
 
-    if (!audioUrl) {
+    if (!audioFile.audioUrl) {
       throw new Error('Quran.com fallback returned no audio URL.');
     }
 
-    return audioUrl;
+    return audioFile;
   }
 };
 

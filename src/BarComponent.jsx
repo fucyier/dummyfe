@@ -19,6 +19,7 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import TranslateIcon from '@mui/icons-material/Translate';
 import { toast } from 'react-toastify';
 import VerseComponent from './VerseComponent';
+import { applySurahSeo } from './seo';
 
 const sortByText = (items, field) => (
   [...items].sort((a, b) => (a?.[field] || '').localeCompare(b?.[field] || '', 'tr', { sensitivity: 'base' }))
@@ -237,12 +238,12 @@ const slugifySurahName = (name) => (
 );
 
 const getSurahPath = (surahItem) => {
-  const slug = slugifySurahName(surahItem?.name);
+  const slug = surahItem?.slug || slugifySurahName(surahItem?.name);
   return slug ? `/sure/${slug}` : '/';
 };
 
 const getLegacySurahPath = (surahItem) => {
-  const slug = slugifySurahName(surahItem?.name);
+  const slug = surahItem?.slug || slugifySurahName(surahItem?.name);
   return slug ? `/${slug}_suresi` : '/';
 };
 
@@ -271,7 +272,7 @@ const scrollPageToTop = () => {
   window.scrollTo(options);
 };
 
-const BarComponent = ({ contentOverride = null }) => {
+const BarComponent = ({ contentOverride = null, contentAudioFilter = null, hideSurahControl = false }) => {
   const controlsRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [verseLoading, setVerseLoading] = useState(false);
@@ -456,26 +457,34 @@ const getVerseList =function (surahId,authorId, options = {}){
   };
 
      const handleChangeAudio = (newValue) => {
-      if(surah===0) toast.error("Sure seçiniz.");
+      if(surah===0 && !contentOverride) toast.error("Sure seçiniz.");
        setAudio(newValue?.id || '');
       // getVerseList(surah,event.target.value);
   };
 
   const gorunum = viewMode === 'memorization' && memorizationView === 'latin';
+  const defaultContentAudioFilter = contentAudioFilter || ((item) => item.audioType === 'ayah');
   const availableAudioOptions = contentOverride
-    ? dataAudio.filter(item => item.audioType === 'ayah')
+    ? dataAudio.filter(defaultContentAudioFilter)
     : dataAudio;
   const selectedAudioOption = availableAudioOptions.find(item => item.id === audio) || null;
+  const selectedSurahOption = dataSurah.find(item => item.id === surah) || null;
+
+  useEffect(() => {
+    if (!contentOverride && selectedSurahOption) {
+      applySurahSeo(selectedSurahOption);
+    }
+  }, [contentOverride, selectedSurahOption]);
 
   useEffect(() => {
     if (!contentOverride || dataAudio.length === 0) return;
     const currentAudio = dataAudio.find(item => item.id === audio);
-    if (!currentAudio || currentAudio.audioType === 'ayah') return;
+    if (currentAudio && defaultContentAudioFilter(currentAudio)) return;
 
-    const defaultAyahAudio = dataAudio.find(item => item.id === DEFAULT_AUDIO_IDENTIFIER && item.audioType === 'ayah')
-      || dataAudio.find(item => item.audioType === 'ayah');
+    const defaultAyahAudio = dataAudio.find(item => item.id === DEFAULT_AUDIO_IDENTIFIER && defaultContentAudioFilter(item))
+      || dataAudio.find(defaultContentAudioFilter);
     setAudio(defaultAyahAudio?.id || '');
-  }, [contentOverride, dataAudio, audio]);
+  }, [contentOverride, dataAudio, audio, contentAudioFilter]);
 
   const handleReadingViewChange = (nextReadingView) => {
     if (nextReadingView === 'meal' && author === 0) {
@@ -510,7 +519,7 @@ const getVerseList =function (surahId,authorId, options = {}){
         });
       })
       .catch(err => {
-        toast.error(err?.message || 'Meal yÃ¼klenirken bir hata oluÅŸtu.');
+        toast.error(err?.message || 'Meal yüklenirken bir hata oluştu.');
       })
       .finally(() => {
         setRandomSurahMealLoading(false);
@@ -580,7 +589,7 @@ const getVerseList =function (surahId,authorId, options = {}){
                   )} />
               </FormControl> */}
 
-                <FormControl variant="outlined" sx={topControlFieldSx}>
+                {!hideSurahControl && <FormControl variant="outlined" sx={topControlFieldSx}>
                 <Autocomplete
                   id="select1"
                   size="small"
@@ -609,7 +618,7 @@ const getVerseList =function (surahId,authorId, options = {}){
                     />
                   )}
                 />
-              </FormControl>
+              </FormControl>}
               <FormControl variant="outlined" sx={topControlFieldSx}>
                 <Autocomplete
                   id="select2"
@@ -621,7 +630,7 @@ const getVerseList =function (surahId,authorId, options = {}){
                   onOpen={() => setAuthorSelectOpen(true)}
                   onClose={closeAuthorSelect}
                   slotProps={compactAutocompleteSlotProps}
-                  disabled={surah === 0}
+                  disabled={surah === 0 && !contentOverride}
                   options={dataAuthor}
                   value={dataAuthor.find(item => item.id === author) || null}
                   getOptionLabel={(option) => option.name || ""}
@@ -647,7 +656,7 @@ const getVerseList =function (surahId,authorId, options = {}){
                   autoHighlight
                   openOnFocus
                   slotProps={compactAutocompleteSlotProps}
-                  disabled={surah === 0}
+                  disabled={surah === 0 && !contentOverride}
                   options={availableAudioOptions}
                   value={selectedAudioOption}
                   groupBy={(option) => option.sourceLabel || 'Diger'}

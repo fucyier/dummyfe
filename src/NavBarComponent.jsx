@@ -6,14 +6,20 @@ import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 
 const navItems = [
-  { key: 'quran', label: 'Kur’an Ezberle' },
+  { key: 'quran', label: "Kur'an Ezberle" },
   { key: 'sureler', label: 'Sureler' },
+  { key: 'mukabele', label: 'Mukabele' },
+  { key: 'dualar', label: 'Namaz Duaları' },
+  { key: 'kuranDualari', label: "Kur'an Duaları" },
   { key: 'hadis', label: 'Hadis' },
 ];
 
 const pagePaths = {
   quran: '/',
   sureler: '/sureler',
+  mukabele: '/mukabele',
+  dualar: '/dualar',
+  kuranDualari: '/kuran-dualari',
   hadis: '/hadis',
 };
 
@@ -69,14 +75,23 @@ const NavBarComponent = ({ activePage = 'quran', onPageChange }) => {
               sx={{
                 mr: { xs: 0.5, sm: 2 },
                 display: 'flex',
-                fontFamily: 'monospace',
-                fontWeight: 700,
-                letterSpacing: { xs: '.02rem', sm: '.1rem' },
+                fontFamily: 'inherit',
+                fontWeight: 900,
+                letterSpacing: 0,
                 color: 'inherit',
                 textDecoration: 'none',
                 paddingLeft: { xs: 0.5, sm: 2 },
-                fontSize: { xs: '0.86rem', sm: '1.25rem' },
-                maxWidth: { xs: 150, sm: 'none' },
+                fontSize: { xs: '0.86rem', sm: '1rem' },
+                maxWidth: { xs: 128, sm: 'none' },
+                '&:visited': {
+                  color: '#fff8d9',
+                },
+                '&:hover': {
+                  color: '#111',
+                },
+                '&:focus': {
+                  color: '#111',
+                },
               }}
             >
               Kuran-ı Kerim Sitesi
@@ -88,7 +103,13 @@ const NavBarComponent = ({ activePage = 'quran', onPageChange }) => {
                 alignItems: 'center',
                 gap: { xs: 0.4, sm: 0.75 },
                 ml: 'auto',
-                flexShrink: 0,
+                flex: '1 1 auto',
+                justifyContent: 'flex-end',
+                overflowX: 'auto',
+                scrollbarWidth: 'none',
+                '&::-webkit-scrollbar': {
+                  display: 'none',
+                },
               }}
             >
               {navItems.map((item) => {
@@ -101,6 +122,7 @@ const NavBarComponent = ({ activePage = 'quran', onPageChange }) => {
                     onClick={(event) => handlePageChange(event, item.key)}
                     sx={{
                       minHeight: 30,
+                      flexShrink: 0,
                       px: { xs: 0.9, sm: 1.4 },
                       py: 0.35,
                       color: selected ? '#54613d' : '#fff8d9',
@@ -110,8 +132,15 @@ const NavBarComponent = ({ activePage = 'quran', onPageChange }) => {
                       fontWeight: 900,
                       fontSize: { xs: '0.78rem', sm: '0.875rem' },
                       textTransform: 'none',
+                      '&:visited': {
+                        color: selected ? '#54613d' : '#fff8d9',
+                      },
                       '&:hover': {
+                        color: selected ? '#54613d' : '#111',
                         backgroundColor: selected ? '#fff8d9' : 'rgba(255, 248, 217, 0.12)',
+                      },
+                      '&:focus': {
+                        color: selected ? '#54613d' : '#111',
                       },
                     }}
                   >

@@ -5,17 +5,28 @@ import { useEffect, useState } from 'react'
 import NavBarComponent from './NavBarComponent';
 import BarComponent from './BarComponent';
 import HadisComponent from './HadisComponent';
+import DuaComponent from './DuaComponent';
+import KuranDuaComponent from './KuranDuaComponent';
 import SureComponent from './SureComponent';
+import MukabeleComponent from './MukabeleComponent';
+import { applyStaticSeo } from './seo';
 
 const getPageFromPath = () => {
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   if (path === '/hadis') return 'hadis';
+  if (path === '/dualar') return 'dualar';
+  if (path === '/kuran-dualari') return 'kuranDualari';
   if (path === '/sureler') return 'sureler';
+  if (path === '/mukabele') return 'mukabele';
   return 'quran';
 };
 
 function App() {
   const [activePage, setActivePage] = useState(getPageFromPath);
+
+  useEffect(() => {
+    applyStaticSeo(activePage);
+  }, [activePage]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -34,11 +45,21 @@ function App() {
        <NavBarComponent activePage={activePage} onPageChange={setActivePage} />
        {activePage === 'hadis' ? (
          <HadisComponent />
+       ) : activePage === 'dualar' ? (
+         <DuaComponent />
+       ) : activePage === 'kuranDualari' ? (
+         <KuranDuaComponent />
        ) : (
          <BarComponent
            contentOverride={activePage === 'sureler'
              ? (props) => <SureComponent {...props} />
+             : activePage === 'mukabele'
+               ? (props) => <MukabeleComponent {...props} />
              : null}
+           contentAudioFilter={activePage === 'mukabele'
+             ? (item) => item.audioType === 'ayah' && item.source === 'quranfoundation'
+             : null}
+           hideSurahControl={activePage === 'mukabele'}
          />
        )}
        <ToastContainer position="top-right" autoClose={3000} theme="colored" />

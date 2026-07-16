@@ -2,15 +2,21 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import Breadcrumbs from '@mui/material/Breadcrumbs';
 import Button from '@mui/material/Button';
+import CardActionArea from '@mui/material/CardActionArea';
+import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
+import Fade from '@mui/material/Fade';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Select from '@mui/material/Select';
 import Typography from '@mui/material/Typography';
+import Zoom from '@mui/material/Zoom';
+import AutoStoriesIcon from '@mui/icons-material/AutoStories';
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { toast } from 'react-toastify';
@@ -28,6 +34,13 @@ const SURAH_REVELATION_ORDER = [
 ];
 const REVELATION_ORDER_BY_SURAH_ID = new Map(
   SURAH_REVELATION_ORDER.map((surahId, index) => [surahId, index + 1]),
+);
+const MEDINAN_SURAH_IDS = new Set([
+  2, 3, 4, 5, 8, 9, 13, 22, 24, 33, 47, 48, 49, 55, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 76, 98, 99, 110,
+]);
+
+const getRevelationType = (surahId) => (
+  MEDINAN_SURAH_IDS.has(Number(surahId)) ? 'Medeni' : 'Mekki'
 );
 
 const formatArabicVerse = (text) => (
@@ -440,18 +453,53 @@ const SureComponent = ({
 
   return (
     <Box sx={{ maxWidth: 1120, mx: 'auto', px: { xs: 0.75, sm: 2 }, pb: 8 }}>
-      <Typography
-        variant="h4"
-        sx={{
-          mb: 1.25,
-          color: '#6f5a22',
-          fontWeight: 900,
-          textAlign: 'center',
-          fontSize: { xs: '1.65rem', sm: '2.35rem' },
-        }}
-      >
-        Sureler
-      </Typography>
+      <Fade in timeout={380}>
+        <Paper
+          elevation={0}
+          sx={{
+            mb: 2,
+            p: { xs: 2, sm: 2.75 },
+            borderRadius: 2,
+            background: 'linear-gradient(135deg, rgba(255,253,244,0.96), rgba(229,239,222,0.9))',
+            border: '1px solid rgba(111, 119, 69, 0.22)',
+            boxShadow: '0 10px 28px rgba(47, 56, 35, 0.12)',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.25, sm: 2 }, flexWrap: 'wrap' }}>
+            <Box
+              sx={{
+                width: 58,
+                height: 58,
+                borderRadius: 2,
+                display: 'grid',
+                placeItems: 'center',
+                color: '#fff8d9',
+                backgroundColor: '#6f7745',
+                boxShadow: '0 8px 18px rgba(111, 119, 69, 0.28)',
+                transform: 'rotate(-3deg)',
+              }}
+            >
+              <AutoStoriesIcon />
+            </Box>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography
+                variant="h4"
+                sx={{
+                  color: '#6f5a22',
+                  fontWeight: 900,
+                  fontSize: { xs: '1.65rem', sm: '2.35rem' },
+                }}
+              >
+                Sureler
+              </Typography>
+              <Typography sx={{ mt: 0.5, color: '#4f4a33', fontWeight: 700 }}>
+                Mushaf sırası veya iniş sırasına göre sureleri keşfedin; Mekki/Medeni bilgisiyle hızlıca ayırt edin.
+              </Typography>
+            </Box>
+          </Box>
+        </Paper>
+      </Fade>
+
       <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
         <Box
           sx={{
@@ -498,63 +546,96 @@ const SureComponent = ({
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' },
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))' },
           gap: 1.5,
         }}
       >
-        {sortedSurahs.map((surah) => (
-          <Paper
-            key={surah.id}
-            component="button"
-            type="button"
-            onClick={() => loadSurahDetail(surah)}
-            elevation={0}
-            sx={{
-              width: '100%',
-              minHeight: 148,
-              p: 1.5,
-              textAlign: 'left',
-              borderRadius: 1,
-              border: '1px solid rgba(142, 118, 63, 0.22)',
-              backgroundColor: 'rgba(255, 253, 244, 0.88)',
-              boxShadow: '0 4px 16px rgba(47, 56, 35, 0.08)',
-              cursor: 'pointer',
-              color: '#211b14',
-              '&:hover': {
-                borderColor: '#8e763f',
-                backgroundColor: 'rgba(255, 248, 217, 0.96)',
-                boxShadow: '0 8px 20px rgba(47, 56, 35, 0.14)',
-              },
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
-              <Typography sx={{ color: '#6f5a22', fontWeight: 900, fontSize: '1.05rem' }}>
-                {surah.id}. {surah.name}
-              </Typography>
-              <Typography sx={{ color: '#6f7745', fontWeight: 900, fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
-                {surah.verse_count} Ayet
-              </Typography>
-            </Box>
-            <Typography
-              dir="rtl"
-              sx={{
-                mt: 2,
-                color: '#211b14',
-                fontFamily: 'KFGQPC Uthman Taha Naskh, var(--font-mushaf), Traditional Arabic, serif',
-                fontSize: '1.7rem',
-                fontWeight: 400,
-                lineHeight: 1.5,
-                textAlign: 'right',
-              }}
-            >
-              {surah.name_original}
-            </Typography>
-            <Typography sx={{ mt: 1, color: '#4f4a33', fontWeight: 700, fontSize: '0.82rem' }}>
-              Mushaf sırası: {surah.id}
-              {sortMode === 'revelation' && ` · İniş sırası: ${REVELATION_ORDER_BY_SURAH_ID.get(surah.id) || '-'}`}
-            </Typography>
-          </Paper>
-        ))}
+        {sortedSurahs.map((surah, index) => {
+          const revelationType = getRevelationType(surah.id);
+          const revelationOrder = REVELATION_ORDER_BY_SURAH_ID.get(surah.id) || '-';
+
+          return (
+            <Zoom key={surah.id} in timeout={240 + (index % 8) * 35}>
+              <Paper
+                elevation={0}
+                sx={{
+                  overflow: 'hidden',
+                  borderRadius: 2,
+                  border: '1px solid rgba(142, 118, 63, 0.18)',
+                  backgroundColor: 'rgba(255, 253, 244, 0.92)',
+                  boxShadow: '0 7px 18px rgba(47, 56, 35, 0.08)',
+                  transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
+                  '&:hover': {
+                    transform: 'translateY(-3px) scale(1.01)',
+                    borderColor: 'rgba(111, 119, 69, 0.5)',
+                    boxShadow: '0 14px 28px rgba(47, 56, 35, 0.15)',
+                  },
+                }}
+              >
+                <CardActionArea
+                  onClick={() => loadSurahDetail(surah)}
+                  sx={{ p: 1.45, height: '100%', color: '#211b14' }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.25 }}>
+                    <Box
+                      sx={{
+                        flex: '0 0 auto',
+                        width: 44,
+                        height: 44,
+                        borderRadius: '14px',
+                        display: 'grid',
+                        placeItems: 'center',
+                        color: '#fff8d9',
+                        fontWeight: 900,
+                        backgroundColor: revelationType === 'Medeni' ? '#52664a' : '#8e763f',
+                        boxShadow: '0 7px 16px rgba(47, 56, 35, 0.16)',
+                      }}
+                    >
+                      {surah.id}
+                    </Box>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                        <Typography sx={{ color: '#6f5a22', fontWeight: 900, fontSize: '1.05rem' }}>
+                          {surah.name}
+                        </Typography>
+                        <KeyboardArrowRightIcon sx={{ color: '#8e763f', flex: '0 0 auto' }} />
+                      </Box>
+                      <Typography
+                        dir="rtl"
+                        sx={{
+                          mt: 0.75,
+                          color: '#211b14',
+                          fontFamily: 'KFGQPC Uthman Taha Naskh, var(--font-mushaf), Traditional Arabic, serif',
+                          fontSize: '1.58rem',
+                          fontWeight: 400,
+                          lineHeight: 1.4,
+                          textAlign: 'right',
+                        }}
+                      >
+                        {surah.name_original}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.55, mt: 1.2 }}>
+                    <Chip
+                      label={revelationType}
+                      size="small"
+                      sx={{
+                        height: 24,
+                        color: revelationType === 'Medeni' ? '#fff8d9' : '#6f5a22',
+                        backgroundColor: revelationType === 'Medeni' ? '#6f7745' : 'rgba(241, 232, 198, 0.95)',
+                        fontWeight: 900,
+                      }}
+                    />
+                    <Chip label={surah.verse_count + ' Ayet'} size="small" variant="outlined" sx={{ height: 24, color: '#6f5a22', fontWeight: 800, borderColor: 'rgba(142, 118, 63, 0.28)' }} />
+                    <Chip label={'Mushaf ' + surah.id} size="small" variant="outlined" sx={{ height: 24, color: '#6f5a22', fontWeight: 800, borderColor: 'rgba(142, 118, 63, 0.28)' }} />
+                    <Chip label={'İniş ' + revelationOrder} size="small" variant="outlined" sx={{ height: 24, color: '#6f5a22', fontWeight: 800, borderColor: 'rgba(142, 118, 63, 0.28)' }} />
+                  </Box>
+                </CardActionArea>
+              </Paper>
+            </Zoom>
+          );
+        })}
       </Box>
     </Box>
   );

@@ -17,8 +17,10 @@ import CloseIcon from '@mui/icons-material/Close';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import TranslateIcon from '@mui/icons-material/Translate';
+import ViewCarouselIcon from '@mui/icons-material/ViewCarousel';
 import { toast } from 'react-toastify';
 import VerseComponent from './VerseComponent';
+import AyetKartlariComponent from './AyetKartlariComponent';
 import { applySurahSeo } from './seo';
 
 const sortByText = (items, field) => (
@@ -69,6 +71,8 @@ const ViewTabs = ({
   onMemorizationViewChange,
   readingView,
   onReadingViewChange,
+  ayahCardsOpen,
+  onAyahCardsOpen,
 }) => {
   const visibleTabs = disabled
     ? [
@@ -79,6 +83,7 @@ const ViewTabs = ({
       ? [
         { value: 'arabic', label: 'Arapça', icon: <MenuBookIcon fontSize="small" />, onClick: () => onMemorizationViewChange('arabic') },
         { value: 'latin', label: 'Latince', icon: <TranslateIcon fontSize="small" />, onClick: () => onMemorizationViewChange('latin') },
+        { value: 'ayah-cards', label: 'Ayet Kartları', icon: <ViewCarouselIcon fontSize="small" />, onClick: onAyahCardsOpen },
         { value: 'divider', type: 'divider' },
         { value: 'reading', label: 'Okuma', icon: <MenuBookIcon fontSize="small" />, onClick: () => onViewModeChange('reading') },
       ]
@@ -91,7 +96,7 @@ const ViewTabs = ({
   const activeValue = disabled
     ? ''
     : viewMode === 'memorization'
-      ? memorizationView
+      ? (ayahCardsOpen ? 'ayah-cards' : memorizationView)
       : readingView;
 
   return (
@@ -295,6 +300,7 @@ const BarComponent = ({ contentOverride = null, contentAudioFilter = null, hideS
   const [mealDrawerOpenSignal, setMealDrawerOpenSignal] = useState(0);
   const [authorSelectOpen, setAuthorSelectOpen] = useState(false);
   const [pendingReadingMeal, setPendingReadingMeal] = useState(false);
+  const [ayahCardsOpen, setAyahCardsOpen] = useState(false);
 
   const closeAuthorSelect = () => {
     setAuthorSelectOpen(false);
@@ -466,7 +472,9 @@ const getVerseList =function (surahId,authorId, options = {}){
   const defaultContentAudioFilter = contentAudioFilter || ((item) => item.audioType === 'ayah');
   const availableAudioOptions = contentOverride
     ? dataAudio.filter(defaultContentAudioFilter)
-    : dataAudio;
+    : ayahCardsOpen
+      ? dataAudio.filter(item => item.audioType === 'ayah')
+      : dataAudio;
   const selectedAudioOption = availableAudioOptions.find(item => item.id === audio) || null;
   const selectedSurahOption = dataSurah.find(item => item.id === surah) || null;
 
@@ -499,6 +507,24 @@ const getVerseList =function (surahId,authorId, options = {}){
 
     setPendingReadingMeal(false);
     setReadingView(nextReadingView);
+  };
+
+  const handleAyahCardsOpen = () => {
+    if (surah === 0) return;
+
+    const ayahAudioOptions = dataAudio.filter(item => item.audioType === 'ayah');
+    const currentAudio = dataAudio.find(item => item.id === audio);
+    if (!currentAudio || currentAudio.audioType !== 'ayah') {
+      const defaultAyahAudio = ayahAudioOptions.find(item => item.id === DEFAULT_AUDIO_IDENTIFIER)
+        || ayahAudioOptions[0];
+      setAudio(defaultAyahAudio?.id || '');
+    }
+
+    if (author === 0) {
+      setAuthor(DEFAULT_AUTHOR_ID);
+      getVerseList(surah, DEFAULT_AUTHOR_ID);
+    }
+    setAyahCardsOpen(true);
   };
 
   const handleRandomSurahMealOpen = (item) => {
@@ -545,10 +571,7 @@ const getVerseList =function (surahId,authorId, options = {}){
                 left: 0,
                 right: 0,
                 zIndex: 1090,
-                display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-                gap: { xs: 0.6, sm: 1 },
+                display: 'block',
                 px: { xs: 0.6, sm: 1 },
                 py: { xs: 0.6, sm: 1 },
                 backgroundColor: '#f8f5e8',
@@ -563,6 +586,15 @@ const getVerseList =function (surahId,authorId, options = {}){
                 backdropFilter: 'blur(4px)',
               }}
             >
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: { xs: 0.6, sm: 1 },
+                }}
+              >
               {/* <FormControl variant="standard" sx={{ m: 1, minWidth: 100}}>
                 <Autocomplete
                   value={surahName}
@@ -686,7 +718,8 @@ const getVerseList =function (surahId,authorId, options = {}){
                   )}
                 />
               </FormControl>
-              {!contentOverride && <Box sx={{ flex: '0 0 auto', ml: { xs: 0, sm: 1 } }}>
+              </Box>
+              {!contentOverride && <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', mt: { xs: 0.6, sm: 0.8 } }}>
                 <ViewTabs
                   disabled={surah === 0}
                   viewMode={viewMode}
@@ -695,6 +728,8 @@ const getVerseList =function (surahId,authorId, options = {}){
                   onMemorizationViewChange={setMemorizationView}
                   readingView={readingView}
                   onReadingViewChange={handleReadingViewChange}
+                  ayahCardsOpen={ayahCardsOpen}
+                  onAyahCardsOpen={handleAyahCardsOpen}
                 />
               </Box>}
             </Box>
@@ -818,6 +853,20 @@ const getVerseList =function (surahId,authorId, options = {}){
             mealDrawerOpenSignal={mealDrawerOpenSignal}
             onAuthorChange={handleChangeAuthor}
             onSurahNavigate={handleChangeSurah}
+          />
+        )}
+        {!loading && !contentOverride && (
+          <AyetKartlariComponent
+            key={`ayet-kartlari-${surah}-${audio}-${ayahCardsOpen ? 'open' : 'closed'}`}
+            open={ayahCardsOpen}
+            onClose={() => setAyahCardsOpen(false)}
+            surah={surah}
+            surahName={selectedSurahOption?.name}
+            dataVerse={dataVerse}
+            audioOptions={dataAudio.filter(item => item.audioType === 'ayah')}
+            audio={selectedAudioOption}
+            onAudioChange={handleChangeAudio}
+            authorName={dataAuthor.find(item => item.id === author)?.name || ''}
           />
         )}
         <Dialog

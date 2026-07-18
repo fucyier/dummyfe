@@ -12,8 +12,8 @@ const staticRoutes = [
     path: '/',
     priority: '1.0',
     changefreq: 'daily',
-    title: 'Kuran-ı Kerim Oku, Dinle ve Meal İncele',
-    description: "Kur'an-ı Kerim'i Arapça okuyun, Türkçe meallerle inceleyin, ayet ayet dinleyin ve mukabele takibiyle takip edin.",
+    title: 'Kuran-ı Kerim Oku, Dinle, Ezberle ve Ayet Kartları',
+    description: "Kur'an-ı Kerim'i Arapça metin, Türkçe meal ve Latin okunuşuyla inceleyin; ayet kartlarıyla ayet seçin, sıralı dinleyin ve ezber çalışın.",
   },
   {
     path: '/sureler',
@@ -105,8 +105,8 @@ const getSurahRoutes = (surahs) => (
         path: `/sure/${slug}`,
         priority: surah.id <= 2 ? '0.9' : '0.8',
         changefreq: 'monthly',
-        title: `${surah.name} Suresi Oku, Dinle ve Türkçe Meal`,
-        description: `${surah.name} Suresi Arapça okunuşu, Türkçe meali ve ayet ayet sesli dinleme seçenekleri. ${surah.verse_count || ''} ayetlik ${surah.name} Suresi'ni inceleyin.`,
+        title: `${surah.name} Suresi Oku, Dinle, Meal ve Ayet Kartları`,
+        description: `${surah.name} Suresi'ni Arapça metin, Türkçe meal ve Latin okunuşuyla inceleyin; ayet kartlarıyla ayet seçin ve seçili seslendirenden sırayla dinleyin. ${surah.verse_count || ''} ayet.`,
       };
     })
 );
@@ -137,6 +137,41 @@ const applyRouteMeta = (html, route) => {
   const canonical = `${SITE_URL}${route.path === '/' ? '/' : route.path}`;
   const title = escapeHtmlAttribute(route.title);
   const description = escapeHtmlAttribute(route.description);
+  const isQuranRoute = route.path === '/' || route.path.startsWith('/sure/');
+  const schema = JSON.stringify([
+    {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      name: route.title,
+      description: route.description,
+      url: canonical,
+      inLanguage: 'tr-TR',
+      isPartOf: {
+        '@type': 'WebSite',
+        name: 'Kuran-ı Kerim Sitesi',
+        url: SITE_URL,
+      },
+    },
+    ...(isQuranRoute ? [{
+      '@context': 'https://schema.org',
+      '@type': 'WebApplication',
+      name: route.path === '/' ? 'Kur’an Ayet Kartları' : `${route.title.split(' Suresi')[0]} Suresi Ayet Kartları`,
+      description: route.description,
+      url: canonical,
+      applicationCategory: 'EducationalApplication',
+      operatingSystem: 'Any',
+      inLanguage: 'tr-TR',
+      isAccessibleForFree: true,
+      featureList: [
+        'Arapça ayet metni',
+        'Türkçe meal',
+        'Latin harfli okunuş',
+        'Ayet seçimi',
+        'Ayet bazlı seslendiren seçimi',
+        'Sıralı ayet dinleme',
+      ],
+    }] : []),
+  ]).replace(/</g, '\\u003c');
 
   let nextHtml = html.replace(/<title>.*?<\/title>/i, `<title>${title}</title>`);
   nextHtml = replaceOrInsert(nextHtml, /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/i, `<meta name="description" content="${description}" />`);
@@ -146,6 +181,11 @@ const applyRouteMeta = (html, route) => {
   nextHtml = replaceOrInsert(nextHtml, /<meta\s+property="og:description"\s+content="[^"]*"\s*\/?>/i, `<meta property="og:description" content="${description}" />`);
   nextHtml = replaceOrInsert(nextHtml, /<meta\s+name="twitter:title"\s+content="[^"]*"\s*\/?>/i, `<meta name="twitter:title" content="${title}" />`);
   nextHtml = replaceOrInsert(nextHtml, /<meta\s+name="twitter:description"\s+content="[^"]*"\s*\/?>/i, `<meta name="twitter:description" content="${description}" />`);
+  nextHtml = replaceOrInsert(
+    nextHtml,
+    /<script\s+id="page-schema"\s+type="application\/ld\+json">[\s\S]*?<\/script>/i,
+    `<script id="page-schema" type="application/ld+json">${schema}</script>`,
+  );
 
   return nextHtml;
 };

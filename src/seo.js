@@ -1,7 +1,8 @@
 const SITE_ORIGIN = 'https://www.kuran-i-kerim.com';
 const DEFAULT_IMAGE = `${SITE_ORIGIN}/static/images/icons-Allah.png`;
-const DEFAULT_TITLE = 'Kuran-ı Kerim Oku, Dinle ve Meal İncele';
-const DEFAULT_DESCRIPTION = "Kur'an-ı Kerim'i Arapça okuyun, Türkçe meallerle inceleyin, ayet ayet dinleyin ve mukabele takibiyle takip edin.";
+const DEFAULT_TITLE = 'Kuran-ı Kerim Oku, Dinle, Ezberle ve Ayet Kartları';
+const DEFAULT_DESCRIPTION = "Kur'an-ı Kerim'i Arapça metin, Türkçe meal ve Latin okunuşuyla inceleyin; ayet kartlarıyla ayet seçin, sıralı dinleyin ve ezber çalışın.";
+const DEFAULT_KEYWORDS = "Kur'an-ı Kerim, Kuran oku, Kuran dinle, Kuran ezberle, ayet kartları, ayet dinle, Türkçe meal, Latin okunuş, sure, cüz, mukabele, tefsir";
 
 const ROUTE_SEO = {
   quran: {
@@ -124,6 +125,26 @@ const breadcrumbSchema = (items) => ({
   })),
 });
 
+const ayahCardsSchema = ({ name = 'Kur’an Ayet Kartları', description, url }) => ({
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name,
+  description,
+  url,
+  applicationCategory: 'EducationalApplication',
+  operatingSystem: 'Any',
+  inLanguage: 'tr-TR',
+  isAccessibleForFree: true,
+  featureList: [
+    'Arapça ayet metni',
+    'Türkçe meal',
+    'Latin harfli okunuş',
+    'Ayet seçimi',
+    'Ayet bazlı seslendiren seçimi',
+    'Sıralı ayet dinleme',
+  ],
+});
+
 export const getSurahPath = (surah) => {
   const slug = surah?.slug || slugify(surah?.name);
   return slug ? `/sure/${slug}` : '/';
@@ -145,6 +166,7 @@ export const applySeoMetadata = ({ title, description, path = '/', image = DEFAU
   document.title = cleanTitle;
   setCanonical(url);
   setOrCreateMeta('meta[name="description"]', { name: 'description', content: cleanDescription });
+  setOrCreateMeta('meta[name="keywords"]', { name: 'keywords', content: DEFAULT_KEYWORDS });
   setOrCreateMeta('meta[name="robots"]', { name: 'robots', content: 'index, follow' });
   setOrCreateMeta('meta[property="og:type"]', { property: 'og:type', content: 'website' });
   setOrCreateMeta('meta[property="og:locale"]', { property: 'og:locale', content: 'tr_TR' });
@@ -170,6 +192,10 @@ export const applyStaticSeo = (pageKey) => {
         { name: 'Ana Sayfa', path: '/' },
         ...(pageKey === 'quran' ? [] : [{ name: seo.title.split(' - ')[0], path: seo.path }]),
       ]),
+      ...(pageKey === 'quran' ? [ayahCardsSchema({
+        description: seo.description,
+        url: createAbsoluteUrl(seo.path),
+      })] : []),
     ],
   });
 };
@@ -178,8 +204,8 @@ export const applySurahSeo = (surah) => {
   if (!surah?.id) return;
 
   const path = getSurahPath(surah);
-  const title = `${surah.name} Suresi Oku, Dinle ve Türkçe Meal`;
-  const description = `${surah.name} Suresi Arapça okunuşu, Türkçe meali ve ayet ayet sesli dinleme seçenekleri. ${surah.verse_count || ''} ayetlik ${surah.name} Suresi'ni inceleyin.`;
+  const title = `${surah.name} Suresi Oku, Dinle, Meal ve Ayet Kartları`;
+  const description = `${surah.name} Suresi'ni Arapça metin, Türkçe meal ve Latin okunuşuyla inceleyin; ayet kartlarıyla ayet seçin ve seçili seslendirenden sırayla dinleyin. ${surah.verse_count || ''} ayet.`;
 
   applySeoMetadata({
     title,
@@ -192,6 +218,11 @@ export const applySurahSeo = (surah) => {
         { name: 'Sureler', path: '/sureler' },
         { name: `${surah.name} Suresi`, path },
       ]),
+      ayahCardsSchema({
+        name: `${surah.name} Suresi Ayet Kartları`,
+        description,
+        url: createAbsoluteUrl(path),
+      }),
     ],
   });
 };

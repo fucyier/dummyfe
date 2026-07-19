@@ -76,7 +76,68 @@ const PRAYERS = [
   },
 ];
 
+const TASBIHAT = [
+  {
+    id: 'selam-duasi',
+    order: 1,
+    title: 'Selam Duası',
+    subtitle: 'Farz namazında selamdan sonra okunur',
+    arabic: 'اَللّٰهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ',
+    latin: 'Allahümme entes-selâm ve minkes-selâm. Tebârekte yâ zel-celâli vel-ikrâm.',
+    meaning: 'Allah’ım! Selam sensin, selamet sendendir. Ey celal ve ikram sahibi, sen ne yücesin.',
+  },
+  {
+    id: 'salavat',
+    order: 2,
+    title: 'Salavat',
+    subtitle: 'Selam Duası sonrasında okunur',
+    arabic: 'اَللّٰهُمَّ صَلِّ عَلٰى سَيِّدِنَا مُحَمَّدٍ وَعَلٰى آلِ سَيِّدِنَا مُحَمَّدٍ',
+    latin: 'Allahümme salli alâ seyyidinâ Muhammedin ve alâ âli seyyidinâ Muhammed.',
+    meaning: 'Allah’ım! Efendimiz Muhammed’e ve onun ailesine rahmet eyle.',
+  },
+  {
+    id: 'toplu-zikir',
+    order: 3,
+    title: 'Namaz Sonrası Zikri',
+    subtitle: 'Salavattan sonra okunur',
+    arabic: 'سُبْحَانَ اللّٰهِ وَالْحَمْدُ لِلّٰهِ وَلَا إِلٰهَ إِلَّا اللّٰهُ وَاللّٰهُ أَكْبَرُ وَلَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللّٰهِ الْعَلِيِّ الْعَظِيمِ',
+    latin: 'Subhânallâhi ve’l-hâmdü lillâhi ve lâ ilâhe illallâhü vallâhu ekber ve lâ hâvle ve lâ kuvvete illâ billâhi’l-aliyyi’l-azîm.',
+    meaning: 'Allah her türlü eksiklikten uzaktır; hamd Allah’adır; Allah’tan başka ilah yoktur; Allah en büyüktür. Güç ve kuvvet ancak yüce ve büyük Allah’ın yardımıyladır.',
+  },
+  {
+    id: 'ayetel-kursi',
+    order: 4,
+    title: 'Ayetel Kürsi',
+    subtitle: 'Namaz sonrası tavsiye edilen okumalardandır',
+    arabic: 'اللّٰهُ لَا إِلٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌۚ لَهُ مَا فِي السَّمٰوَاتِ وَمَا فِي الْأَرْضِۗ مَنْ ذَا الَّذِي يَشْفَعُ عِنْدَهُ إِلَّا بِإِذْنِهِۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِنْ عِلْمِهِ إِلَّا بِمَا شَاءَۚ وَسِعَ كُرْسِيُّهُ السَّمٰوَاتِ وَالْأَرْضَۖ وَلَا يَؤُودُهُ حِفْظُهُمَاۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ',
+    latin: 'Allâhu lâ ilâhe illâ hüvel hayyül kayyûm. Lâ te’huzühû sinetün velâ nevm. Lehû mâ fis-semâvâti ve mâ fil-ard. Men zellezî yeşfeu indehû illâ bi-iznih. Ya’lemu mâ beyne eydîhim ve mâ halfehüm. Ve lâ yuhîtûne bi-şey’in min ilmihî illâ bimâ şâe. Vesie kürsiyyühüs-semâvâti vel-ard. Ve lâ yeûdühû hıfzuhümâ. Ve hüvel aliyyül azîm.',
+    meaning: 'Allah, O’ndan başka ilah yoktur; diridir ve her şeyi ayakta tutandır. O’nu ne uyuklama ne de uyku tutar. Göklerde ve yerde ne varsa hepsi O’nundur. İzni olmadan O’nun katında şefaat edecek kimdir? O, kullarının önlerindekini ve arkalarındakini bilir. Onlar O’nun ilminden, O’nun dilediği kadarından başka hiçbir şeyi kavrayamazlar. O’nun kürsüsü gökleri ve yeri kuşatmıştır. Onları koruyup gözetmek O’na zor gelmez. O, yücedir, büyüktür.',
+  },
+  {
+    id: 'otuz-uc-tesbih',
+    order: 5,
+    title: 'Otuz Üç Tesbih',
+    subtitle: 'Ayetel Kürsi sonrasında 33’er defa okunur',
+    arabic: 'سُبْحَانَ اللّٰهِ • اَلْحَمْدُ لِلّٰهِ • اَللّٰهُ أَكْبَرُ',
+    latin: 'Sübhânallah (33 defa), Elhamdülillah (33 defa), Allahü ekber (33 defa).',
+    meaning: 'Allah her türlü eksiklikten uzaktır; hamd Allah’adır; Allah en büyüktür. Bu zikirler namaz sonrası tesbihatın temelini oluşturur.',
+  },
+  {
+    id: 'tevhid-zikri',
+    order: 6,
+    title: 'Tevhid Zikri',
+    subtitle: 'Tesbihatı tamamlamak için okunur',
+    arabic: 'لَا إِلٰهَ إِلَّا اللّٰهُ وَحْدَهُ لَا شَرِيكَ لَهُۚ لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلٰى كُلِّ شَيْءٍ قَدِيرٌ',
+    latin: 'Lâ ilâhe illallâhu vahdehû lâ şerîke leh. Lehül mülkü ve lehül hamdü ve hüve alâ külli şey’in kadîr.',
+    meaning: 'Allah’tan başka ilah yoktur; O tektir, ortağı yoktur. Mülk O’nundur, hamd O’nadır ve O her şeye gücü yetendir.',
+  },
+];
+
 const SOURCE_LINKS = [
+  {
+    label: 'Diyanet PDF - Namaz Duaları',
+    href: 'https://webdosyasp.diyanet.gov.tr/muftuluk/UserFiles/adana/Ilceler/pozanti/UserFiles/Files/En%20Son%20NAMAZ%20SURELER%C4%B01_a08ceceb-1d6f-47a9-b045-4e4ade6f9ecb.pdf',
+  },
   {
     label: 'Diyanet TV - Namaz Duaları',
     href: 'https://www.diyanet.tv/kuran-ogreniyorum-2021/video/namaz-dualari--kuran-ogreniyorum-28-bolum',
@@ -86,8 +147,8 @@ const SOURCE_LINKS = [
     href: 'https://www.diyanethaber.com.tr/namaz-icinde-okunacak-dualar',
   },
   {
-    label: 'Diyanet PDF - Namaz Duaları',
-    href: 'https://webdosyasp.diyanet.gov.tr/muftuluk/UserFiles/adana/Ilceler/pozanti/UserFiles/Files/En%20Son%20NAMAZ%20SURELER%C4%B01_a08ceceb-1d6f-47a9-b045-4e4ade6f9ecb.pdf',
+    label: 'Sıralama Kaynağı - Diyanet Temel Dinî Bilgiler',
+    href: 'https://dijital.diyanet.gov.tr/File/Download?id=4218&path=4218_1.pdf',
   },
 ];
 
@@ -219,6 +280,116 @@ const DuaComponent = () => (
       <Paper
         elevation={0}
         sx={{
+          mt: 3.5,
+          mb: 2,
+          p: { xs: 2, sm: 2.5 },
+          borderRadius: 2,
+          background: 'linear-gradient(135deg, rgba(255, 253, 244, 0.98), rgba(245, 239, 214, 0.92))',
+          border: '1px solid rgba(142, 118, 63, 0.22)',
+          boxShadow: '0 12px 32px rgba(47, 56, 35, 0.08)',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, flexWrap: 'wrap', textAlign: 'center' }}>
+          <Box
+            sx={{
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              display: 'grid',
+              placeItems: 'center',
+              color: '#fff8d9',
+              backgroundColor: '#6f7745',
+              boxShadow: '0 8px 18px rgba(111, 119, 69, 0.22)',
+            }}
+          >
+            <AutoStoriesIcon />
+          </Box>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" sx={{ color: '#6f5a22', fontWeight: 900, lineHeight: 1.15 }}>
+              Namaz Tesbihatı
+            </Typography>
+            <Typography sx={{ color: '#4f4a33', fontWeight: 700, mt: 0.5 }}>
+              Sıra: Selam Duası, salavat, namaz sonrası zikri, Ayetel Kürsi, 33’er tesbih ve Tevhid zikri.
+            </Typography>
+          </Box>
+        </Box>
+      </Paper>
+
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>
+        {[...TASBIHAT].sort((first, second) => first.order - second.order).map((dua, index) => (
+          <Zoom key={dua.id} in timeout={220 + (index % 4) * 45}>
+            <Paper
+              elevation={1}
+              sx={{
+                overflow: 'hidden',
+                borderRadius: 2,
+                backgroundColor: 'rgba(255, 253, 244, 0.97)',
+                border: '1px solid rgba(142, 118, 63, 0.22)',
+                boxShadow: '0 10px 26px rgba(47, 56, 35, 0.08)',
+                transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
+                '&:hover': {
+                  transform: 'translateY(-3px)',
+                  boxShadow: '0 16px 34px rgba(47, 56, 35, 0.12)',
+                  borderColor: 'rgba(111, 119, 69, 0.34)',
+                },
+              }}
+            >
+              <CardActionArea component="article" sx={{ p: { xs: 1.75, sm: 2.25 }, cursor: 'default' }}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5, mb: 1.5 }}>
+                  <Box>
+                    <Typography variant="h5" sx={{ color: '#6f5a22', fontWeight: 900 }}>
+                      {dua.title}
+                    </Typography>
+                    <Typography sx={{ color: '#6f7745', fontWeight: 800, fontSize: '0.92rem' }}>
+                      {dua.subtitle}
+                    </Typography>
+                  </Box>
+                  <Chip
+                    icon={<KeyboardArrowRightIcon />}
+                    label={`${dua.order}. Adım`}
+                    size="small"
+                    sx={{ color: '#fff8d9', backgroundColor: '#6f7745', fontWeight: 900, '& .MuiChip-icon': { color: '#fff8d9' } }}
+                  />
+                </Box>
+
+                <Typography
+                  sx={{
+                    direction: 'rtl',
+                    textAlign: 'right',
+                    fontFamily: 'KFGQPC Uthman Taha Naskh, Traditional Arabic, serif',
+                    fontSize: { xs: '1.65rem', sm: '2rem' },
+                    lineHeight: 1.9,
+                    color: '#211b14',
+                    mb: 1.5,
+                  }}
+                >
+                  {dua.arabic}
+                </Typography>
+
+                <Divider sx={{ my: 1.35, borderColor: 'rgba(142, 118, 63, 0.18)' }} />
+
+                <Typography sx={{ color: '#6f5a22', fontWeight: 900, mb: 0.5 }}>
+                  Latin Okunuşu
+                </Typography>
+                <Typography sx={{ color: '#2f312d', lineHeight: 1.7, fontWeight: 700, mb: 1.35 }}>
+                  {dua.latin}
+                </Typography>
+
+                <Typography sx={{ color: '#6f5a22', fontWeight: 900, mb: 0.5 }}>
+                  Anlamı
+                </Typography>
+                <Typography sx={{ color: '#2f312d', lineHeight: 1.75, textAlign: 'justify', textAlignLast: 'left' }}>
+                  {dua.meaning}
+                </Typography>
+              </CardActionArea>
+            </Paper>
+          </Zoom>
+        ))}
+      </Box>
+
+      <Paper
+        elevation={0}
+        sx={{
           mt: 1.75,
           p: { xs: 1, sm: 1.25 },
           borderRadius: 1.5,
@@ -230,7 +401,7 @@ const DuaComponent = () => (
           Kaynak ve Kontrol Notu
         </Typography>
         <Typography sx={{ color: '#4f4a33', lineHeight: 1.45, mb: 0.75, fontSize: '0.78rem' }}>
-          Bu sayfadaki namaz duaları yaygın öğretim metinleri esas alınarak hazırlanmıştır. Yayın öncesi Arapça metin, okunuş ve anlamların aşağıdaki güvenilir kaynaklarla düzenli kontrol edilmesi önerilir.
+          Namaz tesbihatı sırası, Diyanet’in Temel Dinî Bilgiler yayınının “Namaz Kılındıktan Sonra Neler Okunur?” bölümüne göre düzenlenmiştir. Metinlerin Arapçası, okunuşu ve anlamı aşağıdaki güvenilir kaynaklarla düzenli kontrol edilmelidir.
         </Typography>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.6 }}>
           {SOURCE_LINKS.map((source) => (

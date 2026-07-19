@@ -351,10 +351,15 @@ const VerseComponent = ({
   const wordAudioRef = useRef(null);
   const wordAudioPlayTokenRef = useRef(0);
   const readingAudioRef = useRef(null);
+  const activeReadingVerseNumberRef = useRef(null);
+  const pendingReadingReciterRef = useRef(null);
+  const readingReciterChangeTokenRef = useRef(0);
   const mealAudioRef = useRef(null);
   const memorizationAreaRef = useRef(null);
   const verseCount = dataVerse?.verse_count || dataVerse?.verses?.length || 0;
   const selectedAudio = normalizeAudioOption(audio);
+  const selectedAudioSource = selectedAudio?.source;
+  const previousSelectedAudioIdRef = useRef(selectedAudio?.id);
   const isMp3QuranAudio = selectedAudio?.source === 'mp3quran';
   const isQuranFoundationAudio = selectedAudio?.source === 'quranfoundation';
   const audioPlayerSrc = getAudioPlayerSrc(selectedAudio, surah, secilenSound);
@@ -451,7 +456,37 @@ const VerseComponent = ({
     setReadingSurahAudio(null);
     setReadingSurahResumeTime(0);
     setActiveReadingWordIndex(null);
-  }, [surah, selectedAudio?.id, selectedAudio?.identifier]);
+    activeReadingVerseNumberRef.current = null;
+    pendingReadingReciterRef.current = null;
+    readingReciterChangeTokenRef.current += 1;
+  }, [surah]);
+
+  useEffect(() => {
+    const previousAudioId = previousSelectedAudioIdRef.current;
+    const nextAudioId = selectedAudio?.id;
+    previousSelectedAudioIdRef.current = nextAudioId;
+
+    if (!previousAudioId || previousAudioId === nextAudioId) return;
+
+    const canSwitchAtNextVerse = readingSurahPlaybackActive
+      && audioDrawerOpen
+      && Boolean(readingSurahAudio?.audioUrl)
+      && selectedAudioSource === 'quranfoundation';
+
+    if (canSwitchAtNextVerse) {
+      pendingReadingReciterRef.current = selectedAudio;
+      readingReciterChangeTokenRef.current += 1;
+      return;
+    }
+
+    setReadingSurahPlaybackActive(false);
+    setReadingSurahAudio(null);
+    setReadingSurahResumeTime(0);
+    setActiveReadingWordIndex(null);
+    activeReadingVerseNumberRef.current = null;
+    pendingReadingReciterRef.current = null;
+    readingReciterChangeTokenRef.current += 1;
+  }, [selectedAudio, selectedAudio?.id, selectedAudioSource, readingSurahPlaybackActive, audioDrawerOpen, readingSurahAudio?.audioUrl]);
 
   useEffect(() => {
     stopMealAudio(true);
@@ -1073,15 +1108,53 @@ const VerseComponent = ({
     </Box>
   );
 
+  const switchReadingReciterAtVerse = async (verseNumber) => {
+    const nextReciter = pendingReadingReciterRef.current;
+    if (!nextReciter?.recitationId) return;
+
+    pendingReadingReciterRef.current = null;
+    const requestToken = readingReciterChangeTokenRef.current + 1;
+    readingReciterChangeTokenRef.current = requestToken;
+    readingAudioRef.current?.pause();
+
+    try {
+      const nextReadingAudio = await fetchQuranFoundationChapterAudio(nextReciter.recitationId, surah);
+      if (requestToken !== readingReciterChangeTokenRef.current) return;
+
+      const timestamps = nextReadingAudio?.timestamps || nextReadingAudio?.segments || [];
+      const nextVerseTimestamp = timestamps.find((timestamp) => getTimestampVerseNumber(timestamp) === verseNumber);
+      if (!nextReadingAudio?.audioUrl || !nextVerseTimestamp) {
+        throw new Error('Yeni seslendiren için ayet zaman bilgisi bulunamadı.');
+      }
+
+      const { from } = getTimestampRange(nextVerseTimestamp);
+      setReadingSurahAudio(nextReadingAudio);
+      setReadingSurahResumeTime(Math.max(0, from / 1000));
+      setSecilenSound(nextReadingAudio.audioUrl);
+      setActiveReadingWordIndex(null);
+    } catch (error) {
+      if (requestToken !== readingReciterChangeTokenRef.current) return;
+      console.error(error);
+      toast.error('Yeni seslendiren sonraki ayete geçirilemedi.');
+      readingAudioRef.current?.play().catch(() => {});
+    }
+  };
+
   const updateReadingSurahPosition = (timeSeconds) => {
     const readingTimestamps = readingSurahAudio?.timestamps || readingSurahAudio?.segments || [];
     const timestamp = findTimestampAtTime(readingTimestamps, timeSeconds);
     if (!timestamp) return;
 
     const verseNumber = getTimestampVerseNumber(timestamp);
+    const previousVerseNumber = activeReadingVerseNumberRef.current;
+    activeReadingVerseNumberRef.current = verseNumber;
     const verse = dataVerse?.verses?.find(item => item.verse_number === verseNumber);
     if (verse) {
       setActiveVerseId(String(verse.id));
+    }
+
+    if (previousVerseNumber !== null && previousVerseNumber !== verseNumber && pendingReadingReciterRef.current) {
+      switchReadingReciterAtVerse(verseNumber);
     }
 
     const segment = findSegmentAtTime(timestamp, timeSeconds);
@@ -1136,6 +1209,8 @@ const VerseComponent = ({
               setReadingSurahResumeTime(0);
               setActiveVerseId(null);
               setActiveReadingWordIndex(null);
+              activeReadingVerseNumberRef.current = null;
+              pendingReadingReciterRef.current = null;
               resetLessonSettings();
             }}
             sx={{
@@ -1420,6 +1495,9 @@ const VerseComponent = ({
     setArabicPanelPlaybackVerseId(null);
     setArabicPanelLoadingVerseId(null);
     setReadingSurahPlaybackActive(false);
+    activeReadingVerseNumberRef.current = null;
+    pendingReadingReciterRef.current = null;
+    readingReciterChangeTokenRef.current += 1;
     resetLessonSettings();
   };
 
@@ -1493,6 +1571,8 @@ const VerseComponent = ({
       setLessonMode(false);
       setSecilenSound(nextReadingAudio.audioUrl);
       setActiveVerseId(firstVerseId);
+      activeReadingVerseNumberRef.current = firstVerse.verse_number;
+      pendingReadingReciterRef.current = null;
       setCurrentVerseRepeat(1);
       setAudioReplayKey((prevKey) => prevKey + 1);
     } catch (error) {

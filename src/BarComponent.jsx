@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState} from 'react';
+import { useEffect, useMemo, useRef, useState} from 'react';
 import { fetchAudioList, fetchAuthorList, fetchRandomVerseTranslations, fetchSurahList, fetchVerseList } from './api';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -186,6 +186,17 @@ const topControlWideFieldSx = {
   minWidth: { xs: 0, sm: 210 },
   flex: { xs: '1 1 calc(50% - 8px)', sm: '0 1 230px' },
 };
+
+const topControlSurahFieldSx = {
+  ...topControlFieldSx,
+  flex: { xs: '1 1 100%', sm: '0 1 210px' },
+};
+
+const isQuranFoundationAyahAudio = (item) => (
+  item?.audioType === 'ayah' && item?.source === 'quranfoundation'
+);
+
+const isAyahAudio = (item) => item?.audioType === 'ayah';
 
 const topControlTextFieldSx = {
   '& .MuiInputBase-root': {
@@ -469,12 +480,16 @@ const getVerseList =function (surahId,authorId, options = {}){
   };
 
   const gorunum = viewMode === 'memorization' && memorizationView === 'latin';
-  const defaultContentAudioFilter = contentAudioFilter || ((item) => item.audioType === 'ayah');
-  const availableAudioOptions = contentOverride
-    ? dataAudio.filter(defaultContentAudioFilter)
-    : ayahCardsOpen
-      ? dataAudio.filter(item => item.audioType === 'ayah')
-      : dataAudio;
+  const readingArabicMode = !contentOverride && viewMode === 'reading' && readingView === 'arabic';
+  const activeAudioFilter = useMemo(() => {
+    if (contentOverride) return contentAudioFilter || isAyahAudio;
+    if (readingArabicMode) return isQuranFoundationAyahAudio;
+    if (ayahCardsOpen) return isAyahAudio;
+    return null;
+  }, [contentOverride, contentAudioFilter, readingArabicMode, ayahCardsOpen]);
+  const availableAudioOptions = activeAudioFilter
+    ? dataAudio.filter(activeAudioFilter)
+    : dataAudio;
   const selectedAudioOption = availableAudioOptions.find(item => item.id === audio) || null;
   const selectedSurahOption = dataSurah.find(item => item.id === surah) || null;
 
@@ -485,14 +500,14 @@ const getVerseList =function (surahId,authorId, options = {}){
   }, [contentOverride, selectedSurahOption]);
 
   useEffect(() => {
-    if (!contentOverride || dataAudio.length === 0) return;
+    if (!activeAudioFilter || dataAudio.length === 0) return;
     const currentAudio = dataAudio.find(item => item.id === audio);
-    if (currentAudio && defaultContentAudioFilter(currentAudio)) return;
+    if (currentAudio && activeAudioFilter(currentAudio)) return;
 
-    const defaultAyahAudio = dataAudio.find(item => item.id === DEFAULT_AUDIO_IDENTIFIER && defaultContentAudioFilter(item))
-      || dataAudio.find(defaultContentAudioFilter);
+    const defaultAyahAudio = dataAudio.find(item => item.id === DEFAULT_AUDIO_IDENTIFIER && activeAudioFilter(item))
+      || dataAudio.find(activeAudioFilter);
     setAudio(defaultAyahAudio?.id || '');
-  }, [contentOverride, dataAudio, audio, contentAudioFilter]);
+  }, [activeAudioFilter, dataAudio, audio]);
 
   const handleReadingViewChange = (nextReadingView) => {
     if (nextReadingView === 'meal' && author === 0) {
@@ -621,7 +636,7 @@ const getVerseList =function (surahId,authorId, options = {}){
                   )} />
               </FormControl> */}
 
-                {!hideSurahControl && <FormControl variant="outlined" sx={topControlFieldSx}>
+                {!hideSurahControl && <FormControl variant="outlined" sx={topControlSurahFieldSx}>
                 <Autocomplete
                   id="select1"
                   size="small"
@@ -866,7 +881,9 @@ const getVerseList =function (surahId,authorId, options = {}){
             audioOptions={dataAudio.filter(item => item.audioType === 'ayah')}
             audio={selectedAudioOption}
             onAudioChange={handleChangeAudio}
-            authorName={dataAuthor.find(item => item.id === author)?.name || ''}
+            authorOptions={dataAuthor}
+            selectedAuthor={dataAuthor.find(item => item.id === author) || null}
+            onAuthorChange={handleChangeAuthor}
           />
         )}
         <Dialog

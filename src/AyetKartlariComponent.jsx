@@ -61,7 +61,9 @@ const AyetKartlariComponent = ({
   audioOptions,
   audio,
   onAudioChange,
-  authorName,
+  authorOptions,
+  selectedAuthor,
+  onAuthorChange,
 }) => {
   const verses = dataVerse?.verses || [];
   const [verseIndex, setVerseIndex] = useState(0);
@@ -233,9 +235,28 @@ const AyetKartlariComponent = ({
           boxShadow: '0 3px 14px rgba(47, 49, 45, 0.08)',
         }}
       >
-        <IconButton aria-label="Ayet kartlarını kapat" onClick={handleClose} sx={{ justifySelf: 'start', color: '#6f5a22' }}>
-          <CloseIcon />
-        </IconButton>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, justifySelf: 'start', minWidth: 0 }}>
+          <IconButton aria-label="Ayet kartlarını kapat" onClick={handleClose} sx={{ color: '#6f5a22' }}>
+            <CloseIcon />
+          </IconButton>
+          <Autocomplete
+            size="small"
+            disableClearable
+            autoHighlight
+            openOnFocus
+            options={authorOptions}
+            value={selectedAuthor || null}
+            onChange={(event, value) => onAuthorChange?.(value)}
+            getOptionLabel={(option) => option?.name || ''}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            sx={{
+              display: { xs: 'none', md: 'block' },
+              width: 245,
+              '& .MuiOutlinedInput-root': { backgroundColor: '#fffdf4', borderRadius: 999 },
+            }}
+            renderInput={(params) => <TextField {...params} label="Meal Seçiniz" />}
+          />
+        </Box>
         <Box sx={{ textAlign: 'center', minWidth: 0 }}>
           <Typography sx={{ color: '#6f5a22', fontWeight: 900, fontSize: { xs: '1rem', sm: '1.2rem' } }}>
             {surahName || 'Sure'} Suresi
@@ -262,7 +283,25 @@ const AyetKartlariComponent = ({
         />
       </Box>
 
-      <Box sx={{ display: { xs: 'block', md: 'none' }, px: 1.25, pt: 1.25 }}>
+      <Box sx={{ display: { xs: 'flex', md: 'none' }, gap: 0.75, px: 1.25, pt: 1.25 }}>
+        <Autocomplete
+          size="small"
+          disableClearable
+          autoHighlight
+          openOnFocus
+          options={authorOptions}
+          value={selectedAuthor || null}
+          onChange={(event, value) => onAuthorChange?.(value)}
+          getOptionLabel={(option) => option?.name || ''}
+          isOptionEqualToValue={(option, value) => option.id === value.id}
+          sx={{
+            flex: '1 1 0',
+            minWidth: 0,
+            '& .MuiOutlinedInput-root': { backgroundColor: '#fffdf4', borderRadius: 999 },
+            '& .MuiInputBase-input': { fontSize: '0.78rem' },
+          }}
+          renderInput={(params) => <TextField {...params} label="Meal" />}
+        />
         <Autocomplete
           size="small"
           disableClearable
@@ -271,7 +310,12 @@ const AyetKartlariComponent = ({
           onChange={(event, value) => handleAudioChange(value)}
           getOptionLabel={(option) => option?.englishName || ''}
           isOptionEqualToValue={(option, value) => option.id === value.id}
-          sx={{ '& .MuiOutlinedInput-root': { backgroundColor: '#fffdf4', borderRadius: 999 } }}
+          sx={{
+            flex: '1 1 0',
+            minWidth: 0,
+            '& .MuiOutlinedInput-root': { backgroundColor: '#fffdf4', borderRadius: 999 },
+            '& .MuiInputBase-input': { fontSize: '0.78rem' },
+          }}
           renderInput={(params) => <TextField {...params} label="Ayet Seslendireni" />}
         />
       </Box>
@@ -398,11 +442,6 @@ const AyetKartlariComponent = ({
           >
             {activeVerse?.translation?.text || 'Bu ayet için meal seçilmedi.'}
           </Typography>
-          {authorName && (
-            <Typography variant="caption" sx={{ mt: 1.25, textAlign: 'center', color: '#7b704f', fontWeight: 700 }}>
-              {authorName} meali
-            </Typography>
-          )}
           </Box>
         </Paper>
 
@@ -470,7 +509,7 @@ const AyetKartlariComponent = ({
                   display: 'block',
                   minWidth: 0,
                   overflowWrap: 'anywhere',
-                  fontSize: { xs: '0.9rem', sm: '1.15rem' },
+                  fontSize: { xs: '1rem', sm: '1.28rem' },
                   lineHeight: 1.45,
                   whiteSpace: 'normal',
                 }}

@@ -14,7 +14,6 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Autocomplete from '@mui/material/Autocomplete';
 import CloseIcon from '@mui/icons-material/Close';
-import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import TranslateIcon from '@mui/icons-material/Translate';
 import ViewCarouselIcon from '@mui/icons-material/ViewCarousel';
@@ -65,8 +64,7 @@ const viewTabButtonSx = (active) => ({
 
 const ViewTabs = ({
   disabled,
-  viewMode,
-  onViewModeChange,
+  workspaceMode,
   memorizationView,
   onMemorizationViewChange,
   readingView,
@@ -74,28 +72,19 @@ const ViewTabs = ({
   ayahCardsOpen,
   onAyahCardsOpen,
 }) => {
-  const visibleTabs = disabled
+  const visibleTabs = workspaceMode === 'reading'
     ? [
-        { value: 'memorization', label: 'Ezberleme', icon: <FormatListBulletedIcon fontSize="small" />, onClick: () => onViewModeChange('memorization') },
-        { value: 'reading', label: 'Okuma', icon: <MenuBookIcon fontSize="small" />, onClick: () => onViewModeChange('reading') },
+        { value: 'arabic', label: 'Arapça', icon: <MenuBookIcon fontSize="small" />, onClick: () => onReadingViewChange('arabic') },
+        { value: 'meal', label: 'Meal', icon: <TranslateIcon fontSize="small" />, onClick: () => onReadingViewChange('meal') },
       ]
-    : viewMode === 'memorization'
-      ? [
+    : [
         { value: 'arabic', label: 'Arapça', icon: <MenuBookIcon fontSize="small" />, onClick: () => onMemorizationViewChange('arabic') },
         { value: 'latin', label: 'Latince', icon: <TranslateIcon fontSize="small" />, onClick: () => onMemorizationViewChange('latin') },
         { value: 'ayah-cards', label: 'Ayet Kartları', icon: <ViewCarouselIcon fontSize="small" />, onClick: onAyahCardsOpen },
-        { value: 'divider', type: 'divider' },
-        { value: 'reading', label: 'Okuma', icon: <MenuBookIcon fontSize="small" />, onClick: () => onViewModeChange('reading') },
-      ]
-      : [
-        { value: 'memorization', label: 'Ezberleme', icon: <FormatListBulletedIcon fontSize="small" />, onClick: () => onViewModeChange('memorization') },
-        { value: 'divider', type: 'divider' },
-        { value: 'arabic', label: 'Arapça', icon: <MenuBookIcon fontSize="small" />, onClick: () => onReadingViewChange('arabic') },
-        { value: 'meal', label: 'Meal', icon: <TranslateIcon fontSize="small" />, onClick: () => onReadingViewChange('meal') },
       ];
   const activeValue = disabled
     ? ''
-    : viewMode === 'memorization'
+    : workspaceMode === 'memorization'
       ? (ayahCardsOpen ? 'ayah-cards' : memorizationView)
       : readingView;
 
@@ -288,7 +277,12 @@ const scrollPageToTop = () => {
   window.scrollTo(options);
 };
 
-const BarComponent = ({ contentOverride = null, contentAudioFilter = null, hideSurahControl = false }) => {
+const BarComponent = ({
+  contentOverride = null,
+  contentAudioFilter = null,
+  hideSurahControl = false,
+  workspaceMode = 'memorization',
+}) => {
   const controlsRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [verseLoading, setVerseLoading] = useState(false);
@@ -304,7 +298,6 @@ const BarComponent = ({ contentOverride = null, contentAudioFilter = null, hideS
   const [surah, setSurah] = useState(0);
   const [author, setAuthor] = useState(0);
   const [audio, setAudio] = useState(DEFAULT_AUDIO_IDENTIFIER);
-  const [viewMode, setViewMode] = useState('memorization');
   const [memorizationView, setMemorizationView] = useState('arabic');
   const [readingView, setReadingView] = useState('arabic');
   const [controlsHeight, setControlsHeight] = useState(0);
@@ -346,7 +339,7 @@ useEffect(() => {
     fetchSurahList()
       .then(data => {
         setDataSurah(data);
-        const initialSurah = getSurahFromPath(data);
+        const initialSurah = workspaceMode === 'memorization' ? getSurahFromPath(data) : null;
         if (initialSurah) {
           setSurah(initialSurah.id);
           getVerseList(initialSurah.id, 0);
@@ -418,7 +411,9 @@ const getVerseList =function (surahId,authorId, options = {}){
     scrollPageToTop();
     setSurah(selectedSurah);
     if (selectedSurah === 0) {
-      updateSurahPath(null);
+      if (contentOverride || workspaceMode === 'memorization') {
+        updateSurahPath(null);
+      }
       setAuthor(0);
       setAudio(DEFAULT_AUDIO_IDENTIFIER);
       setDataVerse([]);
@@ -426,7 +421,9 @@ const getVerseList =function (surahId,authorId, options = {}){
       setPendingReadingMeal(false);
       return;
     }
-       updateSurahPath(newValue);
+       if (contentOverride || workspaceMode === 'memorization') {
+         updateSurahPath(newValue);
+       }
        if (contentOverride && author === 0) {
          setAuthor(DEFAULT_AUTHOR_ID);
          getVerseList(selectedSurah, DEFAULT_AUTHOR_ID);
@@ -465,7 +462,6 @@ const getVerseList =function (surahId,authorId, options = {}){
        getVerseList(surah,selectedAuthor, { openMealDrawer: !pendingReadingMeal })
         .then(() => {
           if (pendingReadingMeal) {
-            setViewMode('reading');
             setReadingView('meal');
             setPendingReadingMeal(false);
           }
@@ -479,8 +475,8 @@ const getVerseList =function (surahId,authorId, options = {}){
       // getVerseList(surah,event.target.value);
   };
 
-  const gorunum = viewMode === 'memorization' && memorizationView === 'latin';
-  const readingArabicMode = !contentOverride && viewMode === 'reading' && readingView === 'arabic';
+  const gorunum = workspaceMode === 'memorization' && memorizationView === 'latin';
+  const readingArabicMode = !contentOverride && workspaceMode === 'reading' && readingView === 'arabic';
   const activeAudioFilter = useMemo(() => {
     if (contentOverride) return contentAudioFilter || isAyahAudio;
     if (readingArabicMode) return isQuranFoundationAyahAudio;
@@ -494,10 +490,10 @@ const getVerseList =function (surahId,authorId, options = {}){
   const selectedSurahOption = dataSurah.find(item => item.id === surah) || null;
 
   useEffect(() => {
-    if (!contentOverride && selectedSurahOption) {
+    if (!contentOverride && workspaceMode === 'memorization' && selectedSurahOption) {
       applySurahSeo(selectedSurahOption);
     }
-  }, [contentOverride, selectedSurahOption]);
+  }, [contentOverride, workspaceMode, selectedSurahOption]);
 
   useEffect(() => {
     if (!activeAudioFilter || dataAudio.length === 0) return;
@@ -737,8 +733,7 @@ const getVerseList =function (surahId,authorId, options = {}){
               {!contentOverride && <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', mt: { xs: 0.6, sm: 0.8 } }}>
                 <ViewTabs
                   disabled={surah === 0}
-                  viewMode={viewMode}
-                  onViewModeChange={setViewMode}
+                  workspaceMode={workspaceMode}
                   memorizationView={memorizationView}
                   onMemorizationViewChange={setMemorizationView}
                   readingView={readingView}
@@ -860,7 +855,7 @@ const getVerseList =function (surahId,authorId, options = {}){
             author={author}
             audio={dataAudio.find(item => item.id === audio) || null}
             gorunum={gorunum}
-            readingMode={viewMode === 'reading'}
+            readingMode={workspaceMode === 'reading'}
             readingView={readingView}
             dataVerse={dataVerse}
             dataSurah={dataSurah}
@@ -870,7 +865,7 @@ const getVerseList =function (surahId,authorId, options = {}){
             onSurahNavigate={handleChangeSurah}
           />
         )}
-        {!loading && !contentOverride && (
+        {!loading && !contentOverride && workspaceMode === 'memorization' && (
           <AyetKartlariComponent
             key={`ayet-kartlari-${surah}-${audio}-${ayahCardsOpen ? 'open' : 'closed'}`}
             open={ayahCardsOpen}

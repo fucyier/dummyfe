@@ -7,6 +7,7 @@ import BarComponent from './BarComponent';
 import HadisComponent from './HadisComponent';
 import DuaComponent from './DuaComponent';
 import KuranDuaComponent from './KuranDuaComponent';
+import KuranOkuComponent from './KuranOkuComponent';
 import SureComponent from './SureComponent';
 import MukabeleComponent from './MukabeleComponent';
 import { applyStaticSeo } from './seo';
@@ -16,6 +17,7 @@ const getPageFromPath = () => {
   if (path === '/hadis') return 'hadis';
   if (path === '/dualar') return 'dualar';
   if (path === '/kuran-dualari') return 'kuranDualari';
+  if (path === '/kuran-oku') return 'kuranOku';
   if (path === '/sureler') return 'sureler';
   if (path === '/mukabele') return 'mukabele';
   return 'quran';
@@ -49,6 +51,8 @@ function App() {
          <DuaComponent />
        ) : activePage === 'kuranDualari' ? (
          <KuranDuaComponent />
+       ) : activePage === 'kuranOku' ? (
+         <KuranOkuComponent />
        ) : (
          <BarComponent
            contentOverride={activePage === 'sureler'

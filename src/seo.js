@@ -10,6 +10,11 @@ const ROUTE_SEO = {
     title: DEFAULT_TITLE,
     description: DEFAULT_DESCRIPTION,
   },
+  kuranOku: {
+    path: '/kuran-oku',
+    title: 'Kur’an Oku - Arapça Metin, Türkçe Meal ve Seslendirme',
+    description: "Kur'an-ı Kerim'i sure sure Arapça mushaf görünümünde okuyun, seçtiğiniz Türkçe meali inceleyin ve farklı seslendirenlerden dinleyin.",
+  },
   sureler: {
     path: '/sureler',
     title: 'Sureler Listesi - Kuran-ı Kerim Oku ve Dinle',

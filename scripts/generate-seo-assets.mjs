@@ -16,6 +16,13 @@ const staticRoutes = [
     description: "Kur'an-ı Kerim'i Arapça metin, Türkçe meal ve Latin okunuşuyla inceleyin; ayet kartlarıyla ayet seçin, sıralı dinleyin ve ezber çalışın.",
   },
   {
+    path: '/kuran-oku',
+    priority: '0.9',
+    changefreq: 'weekly',
+    title: 'Kur’an Oku - Arapça Metin, Türkçe Meal ve Seslendirme',
+    description: "Kur'an-ı Kerim'i sure sure Arapça mushaf görünümünde okuyun, seçtiğiniz Türkçe meali inceleyin ve farklı seslendirenlerden dinleyin.",
+  },
+  {
     path: '/sureler',
     priority: '0.9',
     changefreq: 'weekly',
@@ -137,7 +144,7 @@ const applyRouteMeta = (html, route) => {
   const canonical = `${SITE_URL}${route.path === '/' ? '/' : route.path}`;
   const title = escapeHtmlAttribute(route.title);
   const description = escapeHtmlAttribute(route.description);
-  const isQuranRoute = route.path === '/' || route.path.startsWith('/sure/');
+  const isQuranRoute = route.path === '/' || route.path === '/kuran-oku' || route.path.startsWith('/sure/');
   const schema = JSON.stringify([
     {
       '@context': 'https://schema.org',
@@ -155,7 +162,11 @@ const applyRouteMeta = (html, route) => {
     ...(isQuranRoute ? [{
       '@context': 'https://schema.org',
       '@type': 'WebApplication',
-      name: route.path === '/' ? 'Kur’an Ayet Kartları' : `${route.title.split(' Suresi')[0]} Suresi Ayet Kartları`,
+      name: route.path === '/'
+        ? 'Kur’an Ayet Kartları'
+        : route.path === '/kuran-oku'
+          ? 'Kur’an Oku'
+          : `${route.title.split(' Suresi')[0]} Suresi Ayet Kartları`,
       description: route.description,
       url: canonical,
       applicationCategory: 'EducationalApplication',

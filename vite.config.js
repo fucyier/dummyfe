@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 import quranFoundationHandler from './api/quran/[...path].js'
 
 const quranFoundationDevProxy = () => ({
@@ -68,6 +69,54 @@ export default defineConfig(({ mode }) => {
       react({
         babel: {
           plugins: [['babel-plugin-react-compiler']],
+        },
+      }),
+      VitePWA({
+        registerType: 'prompt',
+        injectRegister: 'auto',
+        includeAssets: [
+          'pwa/apple-touch-icon.png',
+          'pwa/icon-192.png',
+          'pwa/icon-512.png',
+          'pwa/icon-maskable-512.png',
+        ],
+        manifest: {
+          id: '/',
+          name: "Kur'an-\u0131 Kerim Sitesi",
+          short_name: "Kur'an-\u0131 Kerim",
+          description: "Kur'an-\u0131 Kerim'i oku, dinle ve ezberle.",
+          lang: 'tr',
+          dir: 'ltr',
+          start_url: '/',
+          scope: '/',
+          display: 'standalone',
+          orientation: 'portrait-primary',
+          background_color: '#faf8ef',
+          theme_color: '#596b3d',
+          icons: [
+            {
+              src: '/pwa/icon-192.png',
+              sizes: '192x192',
+              type: 'image/png',
+            },
+            {
+              src: '/pwa/icon-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+            },
+            {
+              src: '/pwa/icon-maskable-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable',
+            },
+          ],
+        },
+        workbox: {
+          cleanupOutdatedCaches: true,
+          navigateFallback: '/index.html',
+          navigateFallbackDenylist: [/^\/api\//],
+          globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,woff,woff2}'],
         },
       }),
       quranFoundationDevProxy(),

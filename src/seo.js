@@ -15,6 +15,11 @@ const ROUTE_SEO = {
     title: 'Kur’an Oku - Arapça Metin, Türkçe Meal ve Seslendirme',
     description: "Kur'an-ı Kerim'i sure sure Arapça mushaf görünümünde okuyun, seçtiğiniz Türkçe meali inceleyin ve farklı seslendirenlerden dinleyin.",
   },
+  kuranTesti: {
+    path: '/kuran-testi',
+    title: "Kur'an Testi - 200 Soruluk Ayet, İman ve Siyer Bilgi Yarışması",
+    description: "Kur'an sureleri, ayet anlamları, iman esasları, peygamberler tarihi ve Hz. Muhammed'in hayatı üzerine kolaydan zora ilerleyen 200 soruluk açıklamalı testi çözün.",
+  },
   sureler: {
     path: '/sureler',
     title: 'Sureler Listesi - Kuran-ı Kerim Oku ve Dinle',

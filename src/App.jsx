@@ -8,6 +8,7 @@ import HadisComponent from './HadisComponent';
 import DuaComponent from './DuaComponent';
 import KuranDuaComponent from './KuranDuaComponent';
 import KuranOkuComponent from './KuranOkuComponent';
+import KuranTesti from './KuranTesti';
 import SureComponent from './SureComponent';
 import MukabeleComponent from './MukabeleComponent';
 import { applyStaticSeo } from './seo';
@@ -18,6 +19,7 @@ const getPageFromPath = () => {
   if (path === '/dualar') return 'dualar';
   if (path === '/kuran-dualari') return 'kuranDualari';
   if (path === '/kuran-oku') return 'kuranOku';
+  if (path === '/kuran-testi') return 'kuranTesti';
   if (path === '/sureler') return 'sureler';
   if (path === '/mukabele') return 'mukabele';
   return 'quran';
@@ -53,6 +55,8 @@ function App() {
          <KuranDuaComponent />
        ) : activePage === 'kuranOku' ? (
          <KuranOkuComponent />
+       ) : activePage === 'kuranTesti' ? (
+         <KuranTesti />
        ) : (
          <BarComponent
            contentOverride={activePage === 'sureler'

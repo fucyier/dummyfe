@@ -22,11 +22,13 @@ const navItems = [
   { key: 'dualar', label: 'Namaz Duaları' },
   { key: 'kuranDualari', label: "Kur'an Duaları" },
   { key: 'hadis', label: 'Hadis' },
+  { key: 'kuranTesti', label: "Kur'an Testi" },
 ];
 
 const pagePaths = {
   quran: '/',
   kuranOku: '/kuran-oku',
+  kuranTesti: '/kuran-testi',
   sureler: '/sureler',
   mukabele: '/mukabele',
   dualar: '/dualar',

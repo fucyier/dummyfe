@@ -17,8 +17,8 @@ const ROUTE_SEO = {
   },
   kuranTesti: {
     path: '/kuran-testi',
-    title: "Kur'an Testi - 200 Soruluk Ayet, İman ve Siyer Bilgi Yarışması",
-    description: "Kur'an sureleri, ayet anlamları, iman esasları, peygamberler tarihi ve Hz. Muhammed'in hayatı üzerine kolaydan zora ilerleyen 200 soruluk açıklamalı testi çözün.",
+    title: "Kur'an Testi - 300 Ayet, Sure, Peygamber ve Siyer Sorusu",
+    description: "114 surenin tamamı, ayet anlamları, iman esasları, peygamber kıssaları ve Hz. Muhammed'in hayatı üzerine 300 açıklamalı ve referanslı soruyu çözün.",
   },
   sureler: {
     path: '/sureler',

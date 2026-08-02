@@ -1,3 +1,6 @@
+import { KURAN_TESTI_SURE_SORULARI } from './kuranTestiSureSorulari.js';
+import { KURAN_TESTI_PEYGAMBER_SORULARI } from './kuranTestiPeygamberSorulari.js';
+
 export const KURAN_TESTI_SORULARI = [
   {
     id: 1,
@@ -2344,6 +2347,8 @@ export const KURAN_TESTI_SORULARI = [
     explanation: 'Ayet Hz. Muhammed’in Allah’ın elçisi olduğunu, önceki elçiler gibi onun da beşer ve ölümlü bulunduğunu hatırlatır. Müminin bağlılığı kişisel sarsıntılarla sona ermemeli; Allah’a kulluk ve vahyin ilkeleri üzerinde devam etmelidir.',
     reference: 'Al-i İmran 3/144; Diyanet Kur’an Yolu Tefsiri',
   },
+  ...KURAN_TESTI_SURE_SORULARI,
+  ...KURAN_TESTI_PEYGAMBER_SORULARI,
 ].map((question) => {
   if (question.id < 151) return question;
 

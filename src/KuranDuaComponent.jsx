@@ -275,6 +275,8 @@ const PROPHET_PRAYER_GROUPS = [
   },
 ];
 
+const REVERSE_CHRONOLOGICAL_PRAYER_GROUPS = [...PROPHET_PRAYER_GROUPS].reverse();
+
 const SOURCE_LINKS = [
   {
     label: 'Diyanet Kur’an Yolu Meali',
@@ -291,7 +293,7 @@ const SOURCE_LINKS = [
 ];
 
 const KuranDuaComponent = () => {
-  const prayerCount = PROPHET_PRAYER_GROUPS.reduce((total, group) => total + group.prayers.length, 0);
+  const prayerCount = REVERSE_CHRONOLOGICAL_PRAYER_GROUPS.reduce((total, group) => total + group.prayers.length, 0);
 
   return (
     <Box
@@ -341,16 +343,16 @@ const KuranDuaComponent = () => {
             Kur’an Duaları
           </Typography>
           <Typography sx={{ color: '#4f4a33', fontWeight: 700, mt: 0.75 }}>
-            Kur’an’da peygamberlere nispet edilen duaları peygamber adına göre gruplu olarak inceleyin.
+            Kur’an’da peygamberlere nispet edilen duaları Hz. Muhammed’den Hz. Âdem’e doğru inceleyin.
           </Typography>
           <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.75, flexWrap: 'wrap', mt: 1.5 }}>
-            <Chip label={`${PROPHET_PRAYER_GROUPS.length} grup`} size="small" sx={{ color: '#fff8d9', backgroundColor: '#6f7745', fontWeight: 900 }} />
+            <Chip label={`${REVERSE_CHRONOLOGICAL_PRAYER_GROUPS.length} grup`} size="small" sx={{ color: '#fff8d9', backgroundColor: '#6f7745', fontWeight: 900 }} />
             <Chip label={`${prayerCount} dua`} size="small" variant="outlined" sx={{ color: '#6f5a22', borderColor: 'rgba(142, 118, 63, 0.34)', fontWeight: 900 }} />
           </Box>
         </Paper>
 
         <Box sx={{ display: 'grid', gap: 1.5 }}>
-          {PROPHET_PRAYER_GROUPS.map((group, groupIndex) => (
+          {REVERSE_CHRONOLOGICAL_PRAYER_GROUPS.map((group, groupIndex) => (
             <Accordion
               key={group.prophet}
               defaultExpanded={groupIndex < 3}

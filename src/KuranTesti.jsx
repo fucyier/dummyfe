@@ -21,28 +21,51 @@ import { KURAN_TESTI_SORULARI } from './kuranTestiSorulari';
 
 const OPTION_LABELS = ['A', 'B', 'C', 'D'];
 
+const shuffleItems = (items) => {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+  }
+  return shuffled;
+};
+
+const createQuizSession = () => shuffleItems(KURAN_TESTI_SORULARI).map((question) => {
+  const shuffledOptions = shuffleItems(question.options.map((option, index) => ({
+    option,
+    isCorrect: index === question.correctIndex,
+  })));
+
+  return {
+    ...question,
+    options: shuffledOptions.map(item => item.option),
+    correctIndex: shuffledOptions.findIndex(item => item.isCorrect),
+  };
+});
+
 const KuranTesti = () => {
+  const [questions, setQuestions] = useState(createQuizSession);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [revealedQuestions, setRevealedQuestions] = useState({});
   const questionAreaRef = useRef(null);
 
-  const currentQuestion = KURAN_TESTI_SORULARI[currentIndex];
+  const currentQuestion = questions[currentIndex];
   const selectedIndex = answers[currentQuestion.id];
   const isRevealed = Boolean(revealedQuestions[currentQuestion.id]);
   const answeredCount = Object.keys(answers).length;
   const revealedCount = Object.keys(revealedQuestions).length;
   const correctCount = useMemo(
-    () => KURAN_TESTI_SORULARI.reduce((total, question) => (
+    () => questions.reduce((total, question) => (
       revealedQuestions[question.id] && answers[question.id] === question.correctIndex
         ? total + 1
         : total
     ), 0),
-    [answers, revealedQuestions],
+    [answers, questions, revealedQuestions],
   );
 
   const goToQuestion = (nextIndex) => {
-    const boundedIndex = Math.max(0, Math.min(KURAN_TESTI_SORULARI.length - 1, nextIndex));
+    const boundedIndex = Math.max(0, Math.min(questions.length - 1, nextIndex));
     setCurrentIndex(boundedIndex);
     window.requestAnimationFrame(() => {
       questionAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -59,6 +82,7 @@ const KuranTesti = () => {
   };
 
   const handleReset = () => {
+    setQuestions(createQuizSession());
     setAnswers({});
     setRevealedQuestions({});
     setCurrentIndex(0);
@@ -131,7 +155,7 @@ const KuranTesti = () => {
             Kur'an Testi
           </Typography>
           <Typography sx={{ mt: 0.75, color: '#56594f', fontWeight: 600 }}>
-            Sureler, ayetler, iman esasları, peygamberler tarihi ve siyer üzerine 200 soruluk bilgi testi
+            Sureler, ayetler, iman esasları, peygamberler tarihi ve siyer üzerine {questions.length} soruluk bilgi testi
           </Typography>
         </Paper>
 
@@ -154,7 +178,7 @@ const KuranTesti = () => {
             >
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                 <Chip
-                  label={`Soru ${currentIndex + 1} / ${KURAN_TESTI_SORULARI.length}`}
+                  label={`Soru ${currentIndex + 1} / ${questions.length}`}
                   sx={{ backgroundColor: '#6f7745', color: '#fffdf4', fontWeight: 900 }}
                 />
                 <Chip
@@ -171,7 +195,7 @@ const KuranTesti = () => {
                   aria-label="Soru seç"
                   sx={{ backgroundColor: '#fffef9', fontWeight: 800 }}
                 >
-                  {KURAN_TESTI_SORULARI.map((question, index) => (
+                  {questions.map((question, index) => (
                     <MenuItem key={question.id} value={index}>
                       Soru {index + 1}{revealedQuestions[question.id] ? ' ✓' : ''}
                     </MenuItem>
@@ -182,7 +206,7 @@ const KuranTesti = () => {
 
             <LinearProgress
               variant="determinate"
-              value={((currentIndex + 1) / KURAN_TESTI_SORULARI.length) * 100}
+              value={((currentIndex + 1) / questions.length) * 100}
               sx={{
                 mt: 1.5,
                 height: 6,
@@ -349,7 +373,7 @@ const KuranTesti = () => {
               {answeredCount} cevaplandı · {revealedCount} açıklandı · {correctCount} doğru
             </Typography>
 
-            {currentIndex < KURAN_TESTI_SORULARI.length - 1 ? (
+            {currentIndex < questions.length - 1 ? (
               <Button
                 endIcon={<NavigateNextIcon />}
                 onClick={() => goToQuestion(currentIndex + 1)}

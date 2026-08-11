@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "data:transliteration": "node scripts/import-tanzil-transliteration.mjs",
+    "test": "node --test",
     "prebuild": "node scripts/generate-seo-assets.mjs public",
     "build": "vite build",
     "postbuild": "node scripts/generate-seo-assets.mjs dist",

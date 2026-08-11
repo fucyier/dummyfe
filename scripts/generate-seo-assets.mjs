@@ -1,5 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { getAccessToken, getQuranFoundationConfig } from '../api/_quranFoundation.js';
+import { normalizeQuranFoundationChapters } from '../src/quranFoundationAdapters.js';
 
 const SITE_URL = 'https://www.kuran-i-kerim.com';
 const ROOT = process.cwd();
@@ -100,10 +102,24 @@ const slugify = (value) => (
 
 const fetchSurahs = async () => {
   try {
-    const response = await fetch('https://api.acikkuran.com/surahs');
+    let response;
+
+    try {
+      const config = getQuranFoundationConfig();
+      const accessToken = await getAccessToken('content');
+      response = await fetch(`${config.apiBaseUrl}/content/api/v4/chapters?language=tr`, {
+        headers: {
+          'x-auth-token': accessToken,
+          'x-client-id': config.clientId,
+        },
+      });
+    } catch {
+      response = await fetch('https://api.quran.com/api/v4/chapters?language=tr');
+    }
+
     if (!response.ok) throw new Error(`Surah API ${response.status}`);
     const payload = await response.json();
-    return Array.isArray(payload) ? payload : payload?.data || [];
+    return normalizeQuranFoundationChapters(payload?.chapters);
   } catch (error) {
     console.warn(`[seo] Sure listesi alınamadı, sadece temel route'lar yazılacak: ${error.message}`);
     return [];

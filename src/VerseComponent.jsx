@@ -2844,6 +2844,22 @@ const VerseComponent = ({
             );
           })}
         </Stack>
+        <Typography
+          variant="caption"
+          component="p"
+          sx={{ mt: 1.25, mb: 0, textAlign: 'center', color: 'rgba(79, 74, 51, 0.72)' }}
+        >
+          Türkçe çeviriyazı:{' '}
+          <Box
+            component="a"
+            href="https://tanzil.net/trans/"
+            target="_blank"
+            rel="noreferrer"
+            sx={{ color: 'inherit', fontWeight: 700 }}
+          >
+            Tanzil Project - Muhammet Abay
+          </Box>
+        </Typography>
         </Box>
         )}
         <Drawer

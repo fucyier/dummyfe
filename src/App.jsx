@@ -1,17 +1,25 @@
 import './App.css'
 import 'react-toastify/dist/ReactToastify.css'
 import { ToastContainer } from 'react-toastify'
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import NavBarComponent from './NavBarComponent';
 import BarComponent from './BarComponent';
-import HadisComponent from './HadisComponent';
-import DuaComponent from './DuaComponent';
-import KuranDuaComponent from './KuranDuaComponent';
-import KuranOkuComponent from './KuranOkuComponent';
-import KuranTesti from './KuranTesti';
-import SureComponent from './SureComponent';
-import MukabeleComponent from './MukabeleComponent';
 import { applyStaticSeo } from './seo';
+
+const HadisComponent = lazy(() => import('./HadisComponent'));
+const DuaComponent = lazy(() => import('./DuaComponent'));
+const KuranDuaComponent = lazy(() => import('./KuranDuaComponent'));
+const KuranOkuComponent = lazy(() => import('./KuranOkuComponent'));
+const KuranTesti = lazy(() => import('./KuranTesti'));
+const SureComponent = lazy(() => import('./SureComponent'));
+const MukabeleComponent = lazy(() => import('./MukabeleComponent'));
+
+const RouteLoading = () => (
+  <div className="route-loading" role="status" aria-live="polite">
+    <span className="route-loading__spinner" />
+    <strong>Lütfen Bekleyiniz</strong>
+  </div>
+);
 
 const getPageFromPath = () => {
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
@@ -47,6 +55,7 @@ function App() {
   return (
     <> 
        <NavBarComponent activePage={activePage} onPageChange={setActivePage} />
+       <Suspense fallback={<RouteLoading />}>
        {activePage === 'hadis' ? (
          <HadisComponent />
        ) : activePage === 'dualar' ? (
@@ -70,6 +79,7 @@ function App() {
            hideSurahControl={activePage === 'mukabele'}
          />
        )}
+       </Suspense>
        <ToastContainer position="top-right" autoClose={3000} theme="colored" />
       
     </>

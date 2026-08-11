@@ -1,20 +1,26 @@
 import axios from 'axios';
+import {
+  createQuranFoundationVerseMap,
+  normalizeQuranFoundationChapters,
+  normalizeQuranFoundationTranslationResources,
+} from './quranFoundationAdapters';
+import {
+  getTurkishTransliteration,
+  loadTurkishTransliteration,
+} from './turkishTransliteration';
 
-const API_SURAH_LIST_URL = 'https://api.acikkuran.com/surahs'; 
-
-const API_AUTHOR_LIST_URL = 'https://api.acikkuran.com/authors'; 
 const API_AUDIO_LIST_URL = 'https://api.alquran.cloud/v1/edition/format/audio'; 
 const API_MP3_QURAN_RECITERS_URL = 'https://www.mp3quran.net/api/v3/reciters?language=eng';
 const API_SURAH_AUDIO_URL = 'https://cdn.islamic.network/quran/audio-surah/128/{audio}/{surah}.mp3'; 
-const API_SURAH_VERSE_URL = 'https://api.acikkuran.com/surah/'; 
 const API_CLOUD_SURAH_LIST_URL = 'https://api.alquran.cloud/v1/surah/'; 
-const API_SURAH_AUTHOR_VERSE_URL = 'https://api.acikkuran.com/surah/{surahId}?author={authorId}'; 
 const API_CLOUD_SURAH_OKUYANLARIN_LISTESI_URL = 'https://cdn.islamic.network/quran/info/by-surah/info.json'; 
 const QURAN_FOUNDATION_CONTENT_PROXY_URL = '/api/quran/content/api/v4';
 const QURAN_COM_API_V4_URL = 'https://api.quran.com/api/v4';
 const QURAN_FOUNDATION_VERSES_AUDIO_BASE_URL = 'https://verses.quran.foundation';
 const API_TAFSIR_FALLBACK_BASE_URL = 'https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@main/tafsir';
 const HADEETH_ENC_API_BASE_URL = 'https://hadeethenc.com/api/v1';
+const QURAN_FOUNDATION_DEFAULT_TURKISH_TRANSLATION_ID = 77;
+const QURAN_FOUNDATION_TRANSLITERATION_ID = 57;
 
 const AVAILABLE_AUDIO_IDENTIFIERS = new Set([
   'ar.shaatree',
@@ -106,6 +112,12 @@ const AL_QURAN_CLOUD_KAABA_IMAM_IDENTIFIERS = new Set([
 ]);
 
 let turkishTafsirResourcesCache = null;
+let quranFoundationChaptersCache = null;
+let quranFoundationTranslationResourcesCache = null;
+let audioListRequestCache = null;
+const randomVerseTranslationsCache = new Map();
+const quranFoundationBismillahCache = new Map();
+const quranFoundationChapterContentCache = new Map();
 
 const FALLBACK_TURKISH_TAFSIR_EDITIONS = [
   {
@@ -211,7 +223,7 @@ const tafsirHtmlToText = (html) => {
 const fetchTurkishTafsirResources = async () => {
   if (turkishTafsirResourcesCache) return turkishTafsirResourcesCache;
 
-  const response = await axios.get(`${QURAN_FOUNDATION_CONTENT_PROXY_URL}/resources/tafsirs`, {
+  const response = await getQuranFoundationContent('/resources/tafsirs', {
     params: {
       language: 'tr',
     },
@@ -255,31 +267,60 @@ export const normalizeQuranFoundationAudioUrl = (url) => {
   return `${QURAN_FOUNDATION_VERSES_AUDIO_BASE_URL}/${normalizedUrl}`;
 };
 
-const getQuranFoundationChapterWordsPage = async (surahId, page) => {
+const requireJsonResponse = (response, sourceLabel) => {
+  const contentType = String(response.headers?.['content-type'] || '').toLowerCase();
+  const isJsonResponse = contentType.includes('application/json')
+    && response.data
+    && typeof response.data === 'object';
+
+  if (!isJsonResponse) {
+    throw new Error(`${sourceLabel} JSON yerine gecersiz bir yanit dondurdu.`);
+  }
+
+  return response;
+};
+
+const getQuranFoundationContent = async (endpointPath, requestConfig = {}) => {
+  try {
+    const publicResponse = await axios.get(`${QURAN_COM_API_V4_URL}${endpointPath}`, requestConfig);
+    return requireJsonResponse(publicResponse, 'Quran.com');
+  } catch (publicError) {
+    console.debug(`Quran.com public endpoint failed, using authenticated proxy fallback: ${publicError?.message || 'unknown error'}`);
+    const proxyResponse = await axios.get(`${QURAN_FOUNDATION_CONTENT_PROXY_URL}${endpointPath}`, requestConfig);
+    return requireJsonResponse(proxyResponse, 'Quran Foundation proxy');
+  }
+};
+
+const getQuranFoundationChapterWordsPage = async (surahId, page, translationIds = []) => {
   const endpointPath = `/verses/by_chapter/${surahId}`;
   const requestConfig = {
     params: {
       language: 'tr',
       words: 'true',
       word_fields: 'text_uthmani,text_imlaei,audio_url,translation,transliteration,char_type_name,line_number,page_number,v1_page,v2_page',
-      fields: 'verse_key,page_number',
+      fields: 'text_uthmani,text_imlaei,verse_key,page_number,juz_number,hizb_number,rub_el_hizb_number,ruku_number,manzil_number',
+      translations: translationIds.join(','),
+      translation_fields: 'resource_name,language_name',
       per_page: 50,
       page,
     },
   };
 
-  try {
-    const response = await axios.get(`${QURAN_FOUNDATION_CONTENT_PROXY_URL}${endpointPath}`, requestConfig);
-    if (!Array.isArray(response.data?.verses)) {
-      throw new Error('Quran Foundation proxy returned no words.');
-    }
-
-    return response.data;
-  } catch (error) {
-    console.debug(`Quran Foundation word lookup failed, using Quran.com public fallback: ${error?.message || 'unknown error'}`);
-    const response = await axios.get(`${QURAN_COM_API_V4_URL}${endpointPath}`, requestConfig);
-    return response.data;
+  const response = await getQuranFoundationContent(endpointPath, requestConfig);
+  if (!Array.isArray(response.data?.verses)) {
+    throw new Error('Quran Foundation ayet listesi beklenen formatta donmedi.');
   }
+
+  return response.data;
+};
+
+const getQuranFoundationChapters = async () => {
+  if (quranFoundationChaptersCache) return quranFoundationChaptersCache;
+
+  const requestConfig = { params: { language: 'tr' } };
+  const response = await getQuranFoundationContent('/chapters', requestConfig);
+  quranFoundationChaptersCache = normalizeQuranFoundationChapters(response.data?.chapters);
+  return quranFoundationChaptersCache;
 };
 
 const padQuranAudioPart = (value) => String(value).padStart(3, '0');
@@ -290,42 +331,81 @@ const getWordByWordAudioUrl = (surahId, verseNumber, wordIndex) => (
   )
 );
 
-const normalizeQuranFoundationWord = (word, surahId, verseNumber, wordIndex) => ({
+const normalizeQuranFoundationWord = (word, surahId, verseNumber, wordIndex, uthmaniText = '') => ({
   id: word.id,
   position: word.position,
-  text: word.text_imlaei || word.text_uthmani || '',
-  uthmaniText: word.text_uthmani || word.text_imlaei || '',
-  audioUrl: getWordByWordAudioUrl(surahId, verseNumber, wordIndex),
+  text: uthmaniText || word.text_imlaei || word.text_uthmani || word.text || '',
+  uthmaniText: uthmaniText || word.text_uthmani || word.text_imlaei || word.text || '',
+  audioUrl: normalizeQuranFoundationAudioUrl(word.audio_url)
+    || getWordByWordAudioUrl(surahId, verseNumber, word.position ? Number(word.position) - 1 : wordIndex),
   translation: word.translation?.text || '',
   transliteration: word.transliteration?.text || '',
   lineNumber: word.line_number,
   pageNumber: word.v2_page || word.page_number || word.v1_page,
 });
 
-const fetchQuranFoundationChapterWords = async (surahId) => {
+const getArabicWordTokens = (verse) => String(verse?.text_uthmani || verse?.text_imlaei || '')
+  .trim()
+  .split(/\s+/)
+  .filter(token => /[\u0621-\u064A\u066E-\u06D3\u06FA-\u06FC]/u.test(token));
+
+const normalizeQuranFoundationWords = (verse, surahId) => {
+  const verseNumber = Number(verse.verse_number);
+  const arabicTokens = getArabicWordTokens(verse);
+
+  return (verse.words || [])
+    .filter(word => (!word.char_type_name || word.char_type_name === 'word'))
+    .map((word, index) => normalizeQuranFoundationWord(
+      word,
+      surahId,
+      verseNumber,
+      index,
+      arabicTokens[index] || '',
+    ));
+};
+
+const fetchQuranFoundationChapterContent = async (surahId, expectedVerseCount, translationIds = []) => {
   if (!surahId) return new Map();
-
-  const firstPage = await getQuranFoundationChapterWordsPage(surahId, 1);
-  const totalPages = firstPage.pagination?.total_pages || 1;
-  const pages = [firstPage];
-
-  for (let page = 2; page <= totalPages; page += 1) {
-    pages.push(await getQuranFoundationChapterWordsPage(surahId, page));
+  const cacheKey = `${surahId}:${[...translationIds].sort((a, b) => Number(a) - Number(b)).join(',')}`;
+  if (quranFoundationChapterContentCache.has(cacheKey)) {
+    return quranFoundationChapterContentCache.get(cacheKey);
   }
 
-  const verseWordsByNumber = new Map();
+  const request = (async () => {
+    const firstPage = await getQuranFoundationChapterWordsPage(surahId, 1, translationIds);
+    const totalPages = firstPage.pagination?.total_pages || 1;
+    const remainingPages = await Promise.all(
+      Array.from(
+        { length: Math.max(0, totalPages - 1) },
+        (_, index) => getQuranFoundationChapterWordsPage(surahId, index + 2, translationIds),
+      ),
+    );
+    const pages = [firstPage, ...remainingPages];
+    const verseWordsByNumber = new Map();
 
-  pages.flatMap(page => page.verses || []).forEach((verse) => {
-    const words = (verse.words || [])
-      .filter(word => (!word.char_type_name || word.char_type_name === 'word') && (word.text_uthmani || word.text_imlaei))
-      .map((word, index) => normalizeQuranFoundationWord(word, surahId, verse.verse_number, index));
+    pages.flatMap(page => page.verses || []).forEach((verse) => {
+      const words = normalizeQuranFoundationWords(verse, surahId);
 
-    if (words.length > 0) {
-      verseWordsByNumber.set(verse.verse_number, words);
-    }
-  });
+      if (words.length > 0) {
+        verseWordsByNumber.set(verse.verse_number, words);
+      }
+    });
 
-  return verseWordsByNumber;
+    return {
+      pages,
+      verseMap: createQuranFoundationVerseMap(pages, surahId, expectedVerseCount),
+      verseWordsByNumber,
+    };
+  })();
+
+  quranFoundationChapterContentCache.set(cacheKey, request);
+
+  try {
+    return await request;
+  } catch (error) {
+    quranFoundationChapterContentCache.delete(cacheKey);
+    throw error;
+  }
 };
 
 const getQuranFoundationJuzWordsPage = async (juzNumber, page) => {
@@ -341,18 +421,12 @@ const getQuranFoundationJuzWordsPage = async (juzNumber, page) => {
     },
   };
 
-  try {
-    const response = await axios.get(`${QURAN_FOUNDATION_CONTENT_PROXY_URL}${endpointPath}`, requestConfig);
-    if (!Array.isArray(response.data?.verses)) {
-      throw new Error('Quran Foundation proxy returned no juz verses.');
-    }
-
-    return response.data;
-  } catch (error) {
-    console.debug(`Quran Foundation juz lookup failed, using Quran.com public fallback: ${error?.message || 'unknown error'}`);
-    const response = await axios.get(`${QURAN_COM_API_V4_URL}${endpointPath}`, requestConfig);
-    return response.data;
+  const response = await getQuranFoundationContent(endpointPath, requestConfig);
+  if (!Array.isArray(response.data?.verses)) {
+    throw new Error('Quran Foundation cüz ayetlerini beklenen formatta dondurmedi.');
   }
+
+  return response.data;
 };
 
 export const fetchQuranFoundationJuzVerses = async (juzNumber) => {
@@ -372,9 +446,7 @@ export const fetchQuranFoundationJuzVerses = async (juzNumber) => {
       const [surahIdText, verseNumberText] = String(verse.verse_key || '').split(':');
       const surahId = Number(surahIdText);
       const verseNumber = Number(verseNumberText || verse.verse_number);
-      const words = (verse.words || [])
-        .filter(word => (!word.char_type_name || word.char_type_name === 'word') && (word.text_uthmani || word.text_imlaei))
-        .map((word, index) => normalizeQuranFoundationWord(word, surahId, verseNumber, index));
+      const words = normalizeQuranFoundationWords(verse, surahId);
 
       return {
         ...verse,
@@ -384,10 +456,6 @@ export const fetchQuranFoundationJuzVerses = async (juzNumber) => {
       };
     });
 };
-
-const getQuranFoundationAudioUrlFromResponse = (response) => (
-  normalizeQuranFoundationAudioUrl(response.data?.audio_files?.[0]?.url)
-);
 
 const getQuranFoundationAudioFileFromResponse = (response) => {
   const audioFile = response.data?.audio_files?.[0] || response.data?.audio_file || response.data;
@@ -448,51 +516,50 @@ export const fetchQuranFoundationAyahAudio = async (recitationId, surahId, verse
     },
   };
 
-  try {
-    const response = await axios.get(`${QURAN_FOUNDATION_CONTENT_PROXY_URL}${endpointPath}`, requestConfig);
-    const audioFile = getQuranFoundationAudioFileFromResponse(response);
+  const response = await getQuranFoundationContent(endpointPath, requestConfig);
+  const audioFile = getQuranFoundationAudioFileFromResponse(response);
 
-    if (!audioFile.audioUrl) {
-      throw new Error('Quran Foundation proxy returned no audio URL.');
-    }
-
-    return audioFile;
-  } catch (error) {
-    console.debug(`Quran Foundation ayah audio lookup failed, using Quran.com public fallback: ${error?.message || 'unknown error'}`);
-    const response = await axios.get(`${QURAN_COM_API_V4_URL}${endpointPath}`, requestConfig);
-    const audioFile = getQuranFoundationAudioFileFromResponse(response);
-
-    if (!audioFile.audioUrl) {
-      throw new Error('Quran.com fallback returned no audio URL.');
-    }
-
-    return audioFile;
+  if (!audioFile.audioUrl) {
+    throw new Error('Quran Foundation ayet sesi URL bilgisi dondurmedi.');
   }
+
+  return audioFile;
 };
 
 export const fetchSurahList = async () => {
-  try { 
-    const response = await axios.get(API_SURAH_LIST_URL);
-    return response.data.data;
+  try {
+    return await getQuranFoundationChapters();
   } catch (error) {
-    console.error('Error fetching data: ', error);
-    // Handle errors here or throw them to be handled where the function is called
+    console.error('Quran Foundation sure listesi alınamadı: ', error);
     throw error;
   }
+};
+
+const getQuranFoundationTranslationResources = async () => {
+  if (quranFoundationTranslationResourcesCache) {
+    return quranFoundationTranslationResourcesCache;
+  }
+
+  const response = await getQuranFoundationContent('/resources/translations', {
+    params: { language: 'tr' },
+  });
+
+  quranFoundationTranslationResourcesCache = normalizeQuranFoundationTranslationResources(
+    response.data?.translations,
+  );
+  return quranFoundationTranslationResourcesCache;
 };
 
 export const fetchAuthorList = async () => {
   try {
-    const response = await axios.get(API_AUTHOR_LIST_URL);
-    return response.data.data.filter(item => item.language === 'tr');
+    return await getQuranFoundationTranslationResources();
   } catch (error) {
-    console.error('Error fetching data: ', error);
-    // Handle errors here or throw them to be handled where the function is called
+    console.error('Quran Foundation meal kaynaklari alinamadi: ', error);
     throw error;
   }
 };
 
-export const fetchAudioList = async () => {
+const fetchAudioListUncached = async () => {
   try {
     const [alQuranResponse, mp3QuranResponse] = await Promise.all([
       axios.get(API_AUDIO_LIST_URL),
@@ -518,7 +585,63 @@ export const fetchAudioList = async () => {
   }
 };
 
-export const fetchRandomVerseTranslations = async (surahList, authorId = 11, count = 5) => {
+const findTranslation = (verse, resourceId) => (
+  (verse?.translations || []).find(item => Number(item.resource_id) === Number(resourceId))
+);
+
+const getTranslationAuthor = (authorId, authors) => (
+  authors.find(item => Number(item.id) === Number(authorId)) || {
+    id: Number(authorId),
+    name: 'Turkce meal',
+    description: 'Quran Foundation Turkce meal',
+    language: 'tr',
+    url: null,
+    source: 'quranfoundation',
+  }
+);
+
+const toLegacyTranslation = (verse, authorId, authors) => {
+  const translation = findTranslation(verse, authorId);
+
+  return {
+    id: translation?.id || `${verse?.verse_key || verse?.id}-${authorId}`,
+    author: getTranslationAuthor(authorId, authors),
+    text: tafsirHtmlToText(translation?.text || ''),
+    footnotes: translation?.foot_notes || translation?.footnotes || null,
+  };
+};
+
+export const fetchAudioList = () => {
+  if (!audioListRequestCache) {
+    audioListRequestCache = fetchAudioListUncached().catch((error) => {
+      audioListRequestCache = null;
+      throw error;
+    });
+  }
+
+  return audioListRequestCache;
+};
+
+const getQuranFoundationVerseByKey = async (verseKey, translationIds = []) => {
+  const response = await getQuranFoundationContent(`/verses/by_key/${verseKey}`, {
+    params: {
+      language: 'tr',
+      words: 'true',
+      word_fields: 'audio_url,translation,transliteration,char_type_name,line_number,page_number',
+      fields: 'text_uthmani,text_imlaei,verse_key,page_number,juz_number',
+      translations: translationIds.join(','),
+      translation_fields: 'resource_name,language_name',
+    },
+  });
+
+  return response.data?.verse || null;
+};
+
+const fetchRandomVerseTranslationsUncached = async (
+  surahList,
+  authorId = QURAN_FOUNDATION_DEFAULT_TURKISH_TRANSLATION_ID,
+  count = 5,
+) => {
   try {
     const selectedVerses = Array.from({ length: count }, () => {
       const surah = surahList[Math.floor(Math.random() * surahList.length)];
@@ -529,19 +652,15 @@ export const fetchRandomVerseTranslations = async (surahList, authorId = 11, cou
 
     const results = await Promise.all(
       selectedVerses.map(async ({ surah, verseNumber }) => {
-        const response = await axios.get(API_SURAH_VERSE_URL + surah.id, {
-          params: {
-            author: authorId,
-          },
-        });
-        const verse = response.data.data.verses.find(item => item.verse_number === verseNumber);
+        const verse = await getQuranFoundationVerseByKey(`${surah.id}:${verseNumber}`, [authorId]);
+        const translation = findTranslation(verse, authorId);
 
         return {
           id: `${surah.id}-${verseNumber}`,
           surahId: surah.id,
           surahName: surah.name,
           verseNumber,
-          translation: verse?.translation?.text || '',
+          translation: tafsirHtmlToText(translation?.text || ''),
         };
       }),
     );
@@ -567,41 +686,112 @@ export const fetchOkuyanlarinListesi = async () => {
 };
 
 
-export const fetchVerseList = async (surahId, authorId) => {
-  try {
-    let response=[];
-    if(surahId!==0 && authorId === 0){
-     response = await axios.get(API_SURAH_VERSE_URL+surahId);
-    }else if(surahId !==0 && authorId !== 0){
-       response = await axios.get(API_SURAH_VERSE_URL+surahId, 
-        {
-          params: {
-          author: authorId
-        }
-        });
-    }
-    else{
-        throw new Error('Sure ve meal Seçiniz...');
-    }
-    const verseData = response.data.data;
+const fetchQuranFoundationBismillah = async (authorId, authors, transliterationData = null) => {
+  if (quranFoundationBismillahCache.has(authorId)) {
+    return quranFoundationBismillahCache.get(authorId);
+  }
 
-    try {
-      const wordsByVerseNumber = await fetchQuranFoundationChapterWords(surahId);
+  const verse = await getQuranFoundationVerseByKey(
+    '1:1',
+    [authorId, QURAN_FOUNDATION_TRANSLITERATION_ID],
+  );
+  const bismillah = verse ? {
+    id: `bismillah-${authorId}`,
+    surah_id: 0,
+    verse_number: 0,
+    verse: String(verse.text_uthmani || verse.text_imlaei || '').trim(),
+    transcription: getTurkishTransliteration(transliterationData, 1, 1)
+      || tafsirHtmlToText(findTranslation(verse, QURAN_FOUNDATION_TRANSLITERATION_ID)?.text || ''),
+    translation: toLegacyTranslation(verse, authorId, authors),
+  } : null;
+
+  quranFoundationBismillahCache.set(authorId, bismillah);
+  return bismillah;
+};
+
+export const fetchRandomVerseTranslations = (
+  surahList,
+  authorId = QURAN_FOUNDATION_DEFAULT_TURKISH_TRANSLATION_ID,
+  count = 5,
+) => {
+  const cacheKey = `${authorId}:${count}`;
+  if (!randomVerseTranslationsCache.has(cacheKey)) {
+    const request = fetchRandomVerseTranslationsUncached(surahList, authorId, count)
+      .catch((error) => {
+        randomVerseTranslationsCache.delete(cacheKey);
+        throw error;
+      });
+    randomVerseTranslationsCache.set(cacheKey, request);
+  }
+
+  return randomVerseTranslationsCache.get(cacheKey);
+};
+
+export const fetchVerseList = async (surahId, authorId = 0) => {
+  const numericSurahId = Number(surahId);
+  if (!Number.isInteger(numericSurahId) || numericSurahId < 1 || numericSurahId > 114) {
+    throw new Error('Sure ve meal Seciniz...');
+  }
+
+  try {
+    const [chapters, authors, transliterationData] = await Promise.all([
+      getQuranFoundationChapters(),
+      getQuranFoundationTranslationResources(),
+      loadTurkishTransliteration().catch((error) => {
+        console.warn('Yerel Tanzil ceviriyazisi yuklenemedi; Quran Foundation kullaniliyor.', error);
+        return null;
+      }),
+    ]);
+    const chapter = chapters.find(item => item.id === numericSurahId);
+    if (!chapter) throw new Error('Quran Foundation sure bilgisi bulunamadi.');
+
+    const effectiveAuthorId = Number(authorId) || QURAN_FOUNDATION_DEFAULT_TURKISH_TRANSLATION_ID;
+    const { verseMap, verseWordsByNumber } = await fetchQuranFoundationChapterContent(
+      numericSurahId,
+      chapter.verse_count,
+      [effectiveAuthorId, QURAN_FOUNDATION_TRANSLITERATION_ID],
+    );
+
+    const verses = Array.from({ length: chapter.verse_count }, (_, index) => {
+      const verse = verseMap.get(index + 1);
+      const transcription = findTranslation(verse, QURAN_FOUNDATION_TRANSLITERATION_ID);
 
       return {
-        ...verseData,
-        verses: (verseData.verses || []).map((verse) => ({
-          ...verse,
-          quranFoundationWords: wordsByVerseNumber.get(verse.verse_number) || [],
-        })),
+        id: verse.id,
+        surah_id: numericSurahId,
+        verse_number: verse.verse_number,
+        verse_key: verse.verse_key,
+        verse: String(verse.text_uthmani || verse.text_imlaei || '').trim(),
+        verse_simplified: String(verse.text_imlaei || '').trim(),
+        page: verse.page_number,
+        page_number: verse.page_number,
+        juz_number: verse.juz_number,
+        hizb_number: verse.hizb_number,
+        rub_el_hizb_number: verse.rub_el_hizb_number,
+        ruku_number: verse.ruku_number,
+        manzil_number: verse.manzil_number,
+        transcription: getTurkishTransliteration(
+          transliterationData,
+          numericSurahId,
+          verse.verse_number,
+        ) || tafsirHtmlToText(transcription?.text || ''),
+        translation: toLegacyTranslation(verse, effectiveAuthorId, authors),
+        quranFoundationWords: verseWordsByNumber.get(verse.verse_number) || [],
       };
-    } catch (wordError) {
-      console.warn(`Kelime bazlı anlamlar yüklenemedi: ${wordError?.message || 'unknown error'}`);
-      return verseData;
-    }
+    });
+
+    const zero = chapter.bismillah_pre
+      ? await fetchQuranFoundationBismillah(effectiveAuthorId, authors, transliterationData)
+      : null;
+
+    return {
+      ...chapter,
+      page_number: chapter.pages?.[0] || verses[0]?.page_number || null,
+      zero,
+      verses,
+    };
   } catch (error) {
-    console.error('Error fetching data: ', error);
-    // Handle errors here or throw them to be handled where the function is called
+    console.error('Quran Foundation sure ayetleri alinamadi: ', error);
     throw error;
   }
 };
@@ -609,26 +799,16 @@ export const fetchVerseList = async (surahId, authorId) => {
 export const fetchVerseTranslationsByAuthors = async (surahId, verseNumber, authors = []) => {
   if (!surahId || !verseNumber || authors.length === 0) return [];
 
-  const results = await Promise.allSettled(
-    authors.map(async (author) => {
-      const response = await axios.get(API_SURAH_VERSE_URL + surahId, {
-        params: {
-          author: author.id,
-        },
-      });
-      const verse = response.data.data.verses.find(item => item.verse_number === verseNumber);
+  const authorIds = authors.map(author => Number(author.id)).filter(Boolean);
+  const verse = await getQuranFoundationVerseByKey(`${surahId}:${verseNumber}`, authorIds);
 
-      return {
-        authorId: author.id,
-        authorName: author.name,
-        text: verse?.translation?.text || '',
-      };
-    }),
-  );
-
-  return results
-    .filter(result => result.status === 'fulfilled' && result.value.text)
-    .map(result => result.value);
+  return authors
+    .map((author) => ({
+      authorId: author.id,
+      authorName: author.name,
+      text: tafsirHtmlToText(findTranslation(verse, author.id)?.text || ''),
+    }))
+    .filter(item => item.text);
 };
 
 export const fetchVerseTafsirs = async (surahId, verseNumber) => {
@@ -642,7 +822,7 @@ export const fetchVerseTafsirs = async (surahId, verseNumber) => {
       return fetchFallbackTurkishVerseTafsirs(surahId, verseNumber);
     }
 
-    const response = await axios.get(`${QURAN_FOUNDATION_CONTENT_PROXY_URL}/verses/by_key/${surahId}:${verseNumber}`, {
+    const response = await getQuranFoundationContent(`/verses/by_key/${surahId}:${verseNumber}`, {
       params: {
         language: 'tr',
         tafsirs: tafsirIds.join(','),

@@ -22,7 +22,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { toast } from 'react-toastify';
 import { fetchQuranFoundationAyahAudioUrl, fetchVerseList } from './api';
 
-const DEFAULT_AUTHOR_ID = 30;
+const DEFAULT_AUTHOR_ID = 77;
 const QURAN_ANNOTATION_MARKS_REGEX = /[\u0610-\u061a\u06d4\u06d6-\u06ed\u25cc]/g;
 const SURAH_REVELATION_ORDER = [
   96, 68, 73, 74, 1, 111, 81, 87, 92, 89, 93, 94, 103, 100, 108, 102, 107, 109, 105, 113,

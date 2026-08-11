@@ -37,7 +37,7 @@ const uniqueByText = (items, field) => {
 };
 
 const DEFAULT_AUDIO_IDENTIFIER = 'quranfoundation:7';
-const DEFAULT_AUTHOR_ID = 30;
+const DEFAULT_AUTHOR_ID = 77;
 
 const viewTabButtonSx = (active) => ({
   minHeight: { xs: 30, sm: 34 },
@@ -339,43 +339,47 @@ useEffect(() => {
     fetchSurahList()
       .then(data => {
         setDataSurah(data);
+        setLoading(false);
         const initialSurah = workspaceMode === 'memorization' ? getSurahFromPath(data) : null;
         if (initialSurah) {
           setSurah(initialSurah.id);
           getVerseList(initialSurah.id, 0);
         }
-        return fetchRandomVerseTranslations(data);
-      })
-      .then(data => {
-        setRandomVerses(data);
-        setRandomLoading(false);
-        setLoading(false);
+
+        const loadRandomVerses = () => {
+          fetchRandomVerseTranslations(data)
+            .then(setRandomVerses)
+            .catch(console.error)
+            .finally(() => setRandomLoading(false));
+        };
+
+        if ('requestIdleCallback' in window) {
+          window.requestIdleCallback(loadRandomVerses, { timeout: 1500 });
+        } else {
+          window.setTimeout(loadRandomVerses, 0);
+        }
       })
       .catch(err => {
         console.error(err);
         setRandomLoading(false);
-        setLoading(true);
+        setLoading(false);
       });
 
 
      fetchAuthorList()
       .then(data => {
         setDataAuthor(sortByText(data, 'name'));
-        setLoading(false);
       })
       .catch(err => {
         console.error(err);
-        setLoading(true);
       });
 
       fetchAudioList()
       .then(data => {
         setDataAudio(sortAudioOptions(uniqueByText(data, 'id')));
-        setLoading(false);
       })
       .catch(err => {
         console.error(err);
-        setLoading(true);
       });
 
      
@@ -547,7 +551,7 @@ const getVerseList =function (surahId,authorId, options = {}){
       verses: [],
     });
 
-    fetchVerseList(item.surahId, 11)
+    fetchVerseList(item.surahId, DEFAULT_AUTHOR_ID)
       .then(data => {
         setRandomSurahMeal({
           surahId: item.surahId,

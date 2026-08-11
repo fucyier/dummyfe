@@ -116,7 +116,27 @@ export default defineConfig(({ mode }) => {
           cleanupOutdatedCaches: true,
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api\//],
-          globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,woff,woff2}'],
+          globPatterns: ['**/*.{js,css,html,json,png,jpg,jpeg,svg,woff,woff2}'],
+          runtimeCaching: [
+            {
+              urlPattern: ({ url }) => (
+                url.origin === 'https://api.quran.com'
+                && url.pathname.startsWith('/api/v4/')
+              ),
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'quran-content-v1',
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+                expiration: {
+                  maxEntries: 500,
+                  maxAgeSeconds: 30 * 24 * 60 * 60,
+                  purgeOnQuotaError: true,
+                },
+              },
+            },
+          ],
         },
       }),
       quranFoundationDevProxy(),

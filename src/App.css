@@ -3,3 +3,27 @@
   margin: 0 auto;
   text-align: center;
 }
+
+.route-loading {
+  min-height: 42vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #596b3d;
+}
+
+.route-loading__spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(89, 107, 61, 0.22);
+  border-top-color: #596b3d;
+  border-radius: 50%;
+  animation: route-loading-spin 700ms linear infinite;
+}
+
+@keyframes route-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

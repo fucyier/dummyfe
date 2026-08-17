@@ -244,7 +244,7 @@ const slugifySurahName = (name) => (
 
 const getSurahPath = (surahItem) => {
   const slug = surahItem?.slug || slugifySurahName(surahItem?.name);
-  return slug ? `/sure/${slug}` : '/';
+  return slug ? `/sure/${slug}/` : '/';
 };
 
 const getLegacySurahPath = (surahItem) => {

@@ -11,37 +11,37 @@ const ROUTE_SEO = {
     description: DEFAULT_DESCRIPTION,
   },
   kuranOku: {
-    path: '/kuran-oku',
+    path: '/kuran-oku/',
     title: 'Kur’an Oku - Arapça Metin, Türkçe Meal ve Seslendirme',
     description: "Kur'an-ı Kerim'i sure sure Arapça mushaf görünümünde okuyun, seçtiğiniz Türkçe meali inceleyin ve farklı seslendirenlerden dinleyin.",
   },
   kuranTesti: {
-    path: '/kuran-testi',
+    path: '/kuran-testi/',
     title: "Kur'an Testi - 300 Ayet, Sure, Peygamber ve Siyer Sorusu",
     description: "114 surenin tamamı, ayet anlamları, iman esasları, peygamber kıssaları ve Hz. Muhammed'in hayatı üzerine 300 açıklamalı ve referanslı soruyu çözün.",
   },
   sureler: {
-    path: '/sureler',
+    path: '/sureler/',
     title: 'Sureler Listesi - Kuran-ı Kerim Oku ve Dinle',
     description: "Kur'an-ı Kerim surelerini mushaf sırası veya iniş sırasına göre keşfedin; ayet sayısı, Mekki-Medeni bilgisi ve meal seçenekleriyle okuyun.",
   },
   mukabele: {
-    path: '/mukabele',
+    path: '/mukabele/',
     title: 'Mukabele Takibi - Cüz Cüz Kuran Dinle',
     description: "Mukabele sayfasında cüz seçerek Kur'an-ı Kerim'i kelime takibiyle dinleyin, aktif ayet mealini görün ve kaldığınız yerden devam edin.",
   },
   hadis: {
-    path: '/hadis',
+    path: '/hadis/',
     title: 'Türkçe Hadisler - Hadis Kategorileri ve Açıklamaları',
     description: 'Türkçe hadis kategorilerini inceleyin; hadis metni, açıklaması, şerhi, kaynak bilgisi ve hadisten çıkarılan hükümlerle detaylı okuyun.',
   },
   dualar: {
-    path: '/dualar',
+    path: '/dualar/',
     title: 'Namaz Duaları - Arapça, Latin Okunuş ve Anlamları',
     description: 'Sübhâneke, Ettehiyyâtü, Rabbenâ duaları, Kunut duaları ve namazda okunan temel duaları Arapça, Latin okunuş ve Türkçe anlamlarıyla inceleyin.',
   },
   kuranDualari: {
-    path: '/kuran-dualari',
+    path: '/kuran-dualari/',
     title: 'Kur’an Duaları - Peygamber Duaları ve Anlamları',
     description: 'Kur’an’da peygamberlere nispet edilen duaları peygamber adına göre gruplu olarak; sure, ayet, Arapça metin ve Türkçe anlamlarıyla inceleyin.',
   },
@@ -55,7 +55,9 @@ const stripHtml = (value) => (
 );
 
 const createAbsoluteUrl = (path = '/') => {
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const normalizedPath = path === '/'
+    ? '/'
+    : `${(path.startsWith('/') ? path : `/${path}`).replace(/\/+$/, '')}/`;
   return `${SITE_ORIGIN}${normalizedPath}`;
 };
 
@@ -157,7 +159,7 @@ const ayahCardsSchema = ({ name = 'Kur’an Ayet Kartları', description, url })
 
 export const getSurahPath = (surah) => {
   const slug = surah?.slug || slugify(surah?.name);
-  return slug ? `/sure/${slug}` : '/';
+  return slug ? `/sure/${slug}/` : '/';
 };
 
 export const getLegacySurahPath = (surah) => {
@@ -225,7 +227,7 @@ export const applySurahSeo = (surah) => {
       pageSchema({ title, description, url: createAbsoluteUrl(path) }),
       breadcrumbSchema([
         { name: 'Ana Sayfa', path: '/' },
-        { name: 'Sureler', path: '/sureler' },
+        { name: 'Sureler', path: '/sureler/' },
         { name: `${surah.name} Suresi`, path },
       ]),
       ayahCardsSchema({
